@@ -23,6 +23,7 @@ export default function Login({ onLogin }) {
             const data = await res.json();
             localStorage.setItem("token", data.token);
             onLogin();
+            navigate("/app/reservas");
         } catch (err) {
             setError(err.message);
         }

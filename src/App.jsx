@@ -1,28 +1,40 @@
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState } from "react";
-import Login from "./components/Login";
-import Reservas from "./components/Reservas";
+import Login from "./pages/Login";
+import AppLayout from "../layout/AppLayout";
+import Reservas from "./pages/Reservas";
+import Sanciones from "./pages/Sanciones";
+import Salas from "./pages/Salas";
+import Perfil from "./pages/Perfil";
 
-function App() {
+export default function App() {
   const [loggedIn, setLoggedIn] = useState(!!localStorage.getItem("token"));
 
-  const handleLogout = () => {
-    localStorage.removeItem("token"); // borra el token
-    setLoggedIn(false); // vuelve al login
-  };
+  return (
+    <BrowserRouter>
+      <Routes>
 
-  return loggedIn ? (
-    <div>
-      <button 
-        onClick={handleLogout} 
-        style={{ position: "absolute", top: 10, right: 10, padding: "5px 10px" }}
-      >
-        Cerrar Sesión
-      </button>
-      <Reservas />
-    </div>
-  ) : (
-    <Login onLogin={() => setLoggedIn(true)} />
+        {/* LOGIN */}
+        <Route
+          path="/login"
+          element={<Login onLogin={() => setLoggedIn(true)} />}
+        />
+
+        {/* RUTAS INTERNAS */}
+        {loggedIn ? (
+          <Route path="/app" element={<AppLayout />}>
+
+            <Route path="reservas" element={<Reservas />} />
+            <Route path="sanciones" element={<Sanciones />} />
+            <Route path="salas" element={<Salas />} />
+            <Route path="perfil" element={<Perfil />} />
+
+          </Route>
+        ) : (
+          <Route path="*" element={<Navigate to="/login" />} />
+        )}
+
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;
