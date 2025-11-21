@@ -7,12 +7,14 @@ import Salas from "./pages/Salas";
 import Perfil from "./pages/Perfil";
 import AppLayout from "./layout/AppLayout";
 import "./App.css";
+import { AuthProvider } from "./context/AuthContext";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(!!localStorage.getItem("token"));
 
   return (
     <BrowserRouter>
+    <AuthProvider>
       <Routes>
 
         {/* LOGIN */}
@@ -36,6 +38,7 @@ export default function App() {
         )}
 
       </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { getSalas, getReservas, createReserva } from "../services/api";
-import "./Reservas.css";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import "./Reservas.css";
 
 export default function Reservas() {
+    const {user} = useAuth();
+
     const [reservas, setReservas] = useState([]);
     const [salas, setSalas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(false);
 
     const [selectedSala, setSelectedSala] = useState("");
     const [fecha, setFecha] = useState("");
@@ -32,7 +36,7 @@ export default function Reservas() {
                     getReservas(token),
                 ]);
                 setSalas(salaList || []);
-                setReservas(reservaList || []);
+                setReservas(reservaList.reservas || []);
             } catch (e) {
                 setError("No se pudo conectar con el servidor");
                 console.error(e);
@@ -44,9 +48,9 @@ export default function Reservas() {
         load();
     }, [token, navigate]);
 
-    const handleCreate = async (ev) => {
-        ev.preventDefault();
+    const handleCreate = async () => {
         setError(null);
+        setSuccess(false);
 
         if (!selectedSala) {
             setError("Seleccione una sala");
@@ -62,6 +66,8 @@ export default function Reservas() {
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean);
+        
+        participantes_ci.push(user.ci);
 
         const payload = {
             participantes_ci,
@@ -74,14 +80,14 @@ export default function Reservas() {
 
         try {
             await createReserva(payload, token);
-            // reload reservas
             const updated = await getReservas(token);
             setReservas(updated || []);
-            // reset form
             setSelectedSala("");
             setFecha("");
             setTurno(1);
             setParticipantes("");
+            setSuccess(true);
+            setTimeout(() => setSuccess(false), 3000);
         } catch (e) {
             setError(e.message || "Error al crear reserva");
             console.error(e);
@@ -89,75 +95,127 @@ export default function Reservas() {
     };
 
     return (
-        <div style={{ padding: 16 }}>
-            <h2>Reservas</h2>
+        <div className="reservas-container">
+            <div className="reservas-wrapper">
+                <h2 className="reservas-title">Reservas</h2>
 
-            {loading ? (
-                <p>Cargando...</p>
-            ) : (
-                <>
-                    <section style={{ marginBottom: 20 }}>
-                        <h3>Crear Reserva</h3>
-                        <form onSubmit={handleCreate} style={{ display: "grid", gap: 8, maxWidth: 520 }}>
-                            <label>
-                                Sala:
-                                <select
-                                    value={selectedSala}
-                                    onChange={(e) => setSelectedSala(e.target.value)}
-                                    style={{ width: "100%", marginTop: 4 }}
-                                >
-                                    <option value="">-- Seleccione --</option>
-                                    {salas.map((s) => (
-                                        <option key={`${s.nombre_sala}-${s.edificio}`} value={`${s.nombre_sala}|||${s.edificio}`}>
-                                            {s.nombre_sala} — {s.edificio} ({s.capacidad} pers, {s.tipo_sala})
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
+                {loading ? (
+                    <div className="loading-card">
+                        <div className="loading-spinner"></div>
+                        <p className="loading-text">Cargando...</p>
+                    </div>
+                ) : (
+                    <div className="reservas-grid">
+                        <section className="card">
+                            <h3 className="section-header">
+                                <span className="section-icon">+</span>
+                                Nueva Reserva
+                            </h3>
+                            <div className="form-container">
+                                <label className="form-label">
+                                    <span className="form-label-text">Sala</span>
+                                    <select
+                                        value={selectedSala}
+                                        onChange={(e) => setSelectedSala(e.target.value)}
+                                        className="form-select"
+                                    >
+                                        <option value="">-- Seleccione una sala --</option>
+                                        {salas.map((s) => (
+                                            <option 
+                                                key={`${s.nombre_sala}-${s.edificio}`} 
+                                                value={`${s.nombre_sala}|||${s.edificio}`}
+                                            >
+                                                {s.nombre_sala} — {s.edificio} ({s.capacidad} pers, {s.tipo_sala})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
 
-                            <label>
-                                Fecha:
-                                <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-                            </label>
+                                <label className="form-label">
+                                    <span className="form-label-text">Fecha</span>
+                                    <input 
+                                        type="date" 
+                                        value={fecha} 
+                                        onChange={(e) => setFecha(e.target.value)}
+                                        className="form-input"
+                                    />
+                                </label>
 
-                            <label>
-                                Turno (id):
-                                <input type="number" min={1} value={turno} onChange={(e) => setTurno(e.target.value)} />
-                            </label>
+                                <label className="form-label">
+                                    <span className="form-label-text">Turno</span>
+                                    <input 
+                                        type="number" 
+                                        min={1} 
+                                        value={turno} 
+                                        onChange={(e) => setTurno(e.target.value)}
+                                        className="form-input"
+                                    />
+                                </label>
 
-                            <label>
-                                Participantes CI (separados por coma):
-                                <input
-                                    type="text"
-                                    value={participantes}
-                                    onChange={(e) => setParticipantes(e.target.value)}
-                                    placeholder="12345678, 87654321"
-                                />
-                            </label>
+                                <label className="form-label">
+                                    <span className="form-label-text">Participantes (CI separados por coma)</span>
+                                    <input
+                                        type="text"
+                                        value={participantes}
+                                        onChange={(e) => setParticipantes(e.target.value)}
+                                        placeholder="12345678, 87654321"
+                                        className="form-input"
+                                    />
+                                </label>
 
-                            <div>
-                                <button type="submit">Reservar</button>
+                                <button onClick={handleCreate} className="btn-submit">
+                                    Crear Reserva
+                                </button>
+
+                                {error && (
+                                    <div className="alert alert-error">
+                                        ⚠️ {error}
+                                    </div>
+                                )}
+
+                                {success && (
+                                    <div className="alert alert-success">
+                                        ✓ Reserva creada exitosamente
+                                    </div>
+                                )}
                             </div>
-                            {error && <div style={{ color: "red" }}>{error}</div>}
-                        </form>
-                    </section>
+                        </section>
 
-                    <section>
-                        <h3>Tus Reservas</h3>
-                        {reservas.length === 0 ? (
-                            <p>No hay reservas.</p>
-                        ) : (
-                            <ul>
-                                {reservas.map((r) => (
-                                    <li key={r.id}>
-                                        📅 {r.fecha} — 🏢 {r.edificio} — {r.nombre_sala} — {r.estado}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </section>
-                </>
-            )}
+                        <section className="card">
+                            <h3 className="section-header">
+                                <span className="section-icon">📋</span>
+                                Mis Reservas
+                            </h3>
+                            {reservas.length === 0 ? (
+                                <div className="empty-state">
+                                    <div className="empty-state-icon">📅</div>
+                                    <p>No hay reservas aún</p>
+                                </div>
+                            ) : (
+                                <div className="reservations-list">
+                                    {reservas && reservas.map((r) => (
+                                        <div key={r.id} className="reservation-item">
+                                            <div className="reservation-content">
+                                                <div className="reservation-info">
+                                                    <div className="reservation-name">
+                                                        {r.nombre_sala}
+                                                    </div>
+                                                    <div className="reservation-details">
+                                                        📅 {r.fecha} • 🏢 {r.edificio}
+                                                    </div>
+                                                </div>
+                                                <div className={`reservation-status ${r.estado === "ACTIVA" ? "status-active" : "status-inactive"}`}>
+                                                    {r.estado}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

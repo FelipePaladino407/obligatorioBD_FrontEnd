@@ -1,9 +1,11 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { logout as apiLogout } from "../services/api";
 import { useState } from "react";
+import "./AppLayout.css";
 
 export default function AppLayout() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(false);
 
     const handleLogout = async () => {
@@ -14,7 +16,6 @@ export default function AppLayout() {
                 await apiLogout(token);
             }
         } catch (e) {
-            // If logout failed, still remove token locally but log the error
             console.error("Error calling logout endpoint:", e);
         } finally {
             localStorage.removeItem("token");
@@ -23,32 +24,69 @@ export default function AppLayout() {
         }
     };
 
+    const isActive = (path) => {
+        return location.pathname === path ? "active" : "";
+    };
+
     return (
-        <div style={{ display: "flex", minHeight: "100vh" }}>
+        <div className="app-layout">
+            {/* SIDEBAR */}
+            <aside className="app-sidebar">
+                <div className="sidebar-header">
+                    <h3 className="sidebar-title">Sistema de Reservas</h3>
+                    <p className="sidebar-subtitle">Panel de Control</p>
+                </div>
 
-            {/* MENÚ */}
-            <aside style={{
-                width: 200,
-                background: "#222",
-                color: "white",
-                padding: 20
-            }}>
-                <h3>Panel</h3>
-                <ul>
-                    <li onClick={() => navigate("/app/reservas")}>Reservas</li>
-                    <li onClick={() => navigate("/app/sanciones")}>Sanciones</li>
-                    <li onClick={() => navigate("/app/salas")}>Salas</li>
-                    <li onClick={() => navigate("/app/perfil")}>Perfil</li>
-                </ul>
+                <nav className="sidebar-nav">
+                    <ul className="nav-list">
+                        <li 
+                            className={`nav-item ${isActive("/app/reservas")}`}
+                            onClick={() => navigate("/app/reservas")}
+                        >
+                            <span className="nav-icon">📅</span>
+                            <span>Reservas</span>
+                        </li>
+                        <li 
+                            className={`nav-item ${isActive("/app/sanciones")}`}
+                            onClick={() => navigate("/app/sanciones")}
+                        >
+                            <span className="nav-icon">⚠️</span>
+                            <span>Sanciones</span>
+                        </li>
+                        <li 
+                            className={`nav-item ${isActive("/app/salas")}`}
+                            onClick={() => navigate("/app/salas")}
+                        >
+                            <span className="nav-icon">🏢</span>
+                            <span>Salas</span>
+                        </li>
+                        <li 
+                            className={`nav-item ${isActive("/app/perfil")}`}
+                            onClick={() => navigate("/app/perfil")}
+                        >
+                            <span className="nav-icon">👤</span>
+                            <span>Perfil</span>
+                        </li>
+                    </ul>
+                </nav>
 
-                <button onClick={handleLogout} style={{ marginTop: 20 }} disabled={loading}>
-                    {loading ? "Cerrando..." : "Cerrar sesión"}
-                </button>
+                <div className="sidebar-footer">
+                    <button 
+                        onClick={handleLogout} 
+                        className="logout-button"
+                        disabled={loading}
+                    >
+                        <span>🚪</span>
+                        <span>{loading ? "Cerrando..." : "Cerrar sesión"}</span>
+                    </button>
+                </div>
             </aside>
 
-            {/* ACÁ SE CARGA CADA PÁGINA */}
-            <main style={{ padding: 20, flex: 1 }}>
-                <Outlet />
+            {/* MAIN CONTENT */}
+            <main className="app-main">
+                <div className="main-content">
+                    <Outlet />
+                </div>
             </main>
         </div>
     );
