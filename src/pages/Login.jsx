@@ -40,6 +40,7 @@ export default function Login({ onLogin }) {
       if (!me.ok) throw new Error("No se pudo obtener el usuario");
       
       const userData = await me.json();
+      // Se asume que el backend ya incluye is_admin en userData (o se deriva internamente)
       setUser(userData);
 
       // Notificar login OK

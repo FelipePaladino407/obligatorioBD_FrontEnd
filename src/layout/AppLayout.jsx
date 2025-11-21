@@ -1,12 +1,14 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { logout as apiLogout } from "../services/api";
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import "./AppLayout.css";
 
 export default function AppLayout() {
     const navigate = useNavigate();
     const location = useLocation();
     const [loading, setLoading] = useState(false);
+    const { user } = useAuth();
 
     const handleLogout = async () => {
         const token = localStorage.getItem("token");
@@ -60,13 +62,31 @@ export default function AppLayout() {
                             <span className="nav-icon">🏢</span>
                             <span>Salas</span>
                         </li>
-                        <li 
-                            className={`nav-item ${isActive("/app/perfil")}`}
-                            onClick={() => navigate("/app/perfil")}
-                        >
-                            <span className="nav-icon">👤</span>
-                            <span>Perfil</span>
-                        </li>
+                                                <li 
+                                                        className={`nav-item ${isActive("/app/perfil")}`}
+                                                        onClick={() => navigate("/app/perfil")}
+                                                >
+                                                        <span className="nav-icon">👤</span>
+                                                        <span>Perfil</span>
+                                                </li>
+                                                {user?.is_admin && (
+                                                    <li 
+                                                        className={`nav-item ${isActive("/app/reportes")}`}
+                                                        onClick={() => navigate("/app/reportes")}
+                                                    >
+                                                        <span className="nav-icon">📊</span>
+                                                        <span>Reportes</span>
+                                                    </li>
+                                                )}
+                                                {user?.is_admin && (
+                                                    <li 
+                                                        className={`nav-item ${isActive("/app/usuarios")}`}
+                                                        onClick={() => navigate("/app/usuarios")}
+                                                    >
+                                                        <span className="nav-icon">👥</span>
+                                                        <span>Usuarios</span>
+                                                    </li>
+                                                )}
                     </ul>
                 </nav>
 

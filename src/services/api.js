@@ -46,9 +46,28 @@ export async function logout(token) {
   return request("/auth/logout", "POST", null, token);
 }
 
+export async function getReportes(params, token) {
+  const qs = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") qs.append(k, String(v));
+  });
+  return request(`/reportes/?${qs.toString()}`, "GET", null, token);
+}
+
+export async function getParticipantes(token) {
+  return request("/participante/", "GET", null, token);
+}
+
+export async function createSala(payload, token) {
+  return request("/sala/", "POST", payload, token);
+}
+
 export default {
   getSalas,
   getReservas,
   createReserva,
   logout,
+  getReportes,
+  getParticipantes,
+  createSala,
 };
