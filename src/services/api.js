@@ -38,6 +38,10 @@ export async function getReservas(token) {
   return request("/reserva/mias", "GET", null, token);
 }
 
+export async function getReservasAll(token) {
+  return request("/reserva/", "GET", null, token);
+}
+
 export async function createReserva(payload, token) {
   return request("/reserva/", "POST", payload, token);
 }

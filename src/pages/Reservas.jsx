@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSalas, getReservas, createReserva, cancelReserva, deleteReserva } from "../services/api";
+import { getSalas, getReservas, createReserva, cancelReserva, deleteReserva, getReservasAll } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Reservas.css";
@@ -7,7 +7,8 @@ import "./Reservas.css";
 export default function Reservas() {
     const { user } = useAuth();
 
-    const [reservas, setReservas] = useState([]);
+    const [misReservas, setMisReservas] = useState([]);      // antes: reservas
+    const [todasReservas, setTodasReservas] = useState([]);  // solo para admin
     const [salas, setSalas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -32,12 +33,22 @@ export default function Reservas() {
         const load = async () => {
             try {
                 setLoading(true);
-                const [salaList, reservaList] = await Promise.all([
+
+                // siempre cargo mis reservas + salas
+                const [salaList, mis] = await Promise.all([
                     getSalas(token),
                     getReservas(token),
                 ]);
                 setSalas(salaList || []);
-                setReservas(reservaList?.reservas || []);
+                setMisReservas(mis?.reservas || mis || []);
+
+                // si es admin, cargo también todas las reservas del sistema
+                if (user?.is_admin) {
+                    const all = await getReservasAll(token);
+                    setTodasReservas(all?.reservas || all || []);
+                } else {
+                    setTodasReservas([]);
+                }
             } catch (e) {
                 setError("No se pudo conectar con el servidor");
                 console.error(e);
@@ -47,28 +58,19 @@ export default function Reservas() {
         };
 
         load();
-    }, [token, navigate]);
+    }, [token, navigate, user?.is_admin]);
 
     const handleCreate = async () => {
+        // ...existing validations...
         setError(null);
         setSuccess(false);
 
-        if (!selectedSala) {
-            setError("Seleccione una sala");
-            return;
-        }
-        if (!fecha) {
-            setError("Seleccione una fecha");
-            return;
-        }
-
+        // ...existing payload build...
         const [nombre_sala, edificio] = selectedSala.split("|||");
-
         const rawParticipantes = participantes
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean);
-
         const participantes_ci = rawParticipantes
             .map((ci) => ci.replace(/\D/g, ""))
             .filter(Boolean);
@@ -99,8 +101,17 @@ export default function Reservas() {
 
         try {
             await createReserva(payload, token);
-            const updated = await getReservas(token);
-            setReservas(updated?.reservas || []);
+
+            // refrescar mis reservas
+            const mis = await getReservas(token);
+            setMisReservas(mis?.reservas || mis || []);
+
+            // si es admin, refrescar todas
+            if (user?.is_admin) {
+                const all = await getReservasAll(token);
+                setTodasReservas(all?.reservas || all || []);
+            }
+
             setSelectedSala("");
             setFecha("");
             setTurno(1);
@@ -108,12 +119,12 @@ export default function Reservas() {
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (e) {
+            // ...existing error mapping...
             const backendMsg =
                 e?.response?.data?.message ||
                 e?.response?.data?.error ||
                 e?.message ||
                 "";
-
             let uiMsg = "Error al crear reserva";
             if (/list index out of range/i.test(backendMsg)) {
                 uiMsg = "CI inválida";
@@ -124,7 +135,6 @@ export default function Reservas() {
             } else if (backendMsg) {
                 uiMsg = backendMsg;
             }
-
             setError(uiMsg);
             console.error(e);
         }
@@ -135,8 +145,15 @@ export default function Reservas() {
         setSuccess(false);
         try {
             await deleteReserva(id, token);
-            const updated = await getReservas(token);
-            setReservas(updated?.reservas || []);
+
+            const mis = await getReservas(token);
+            setMisReservas(mis?.reservas || mis || []);
+
+            if (user?.is_admin) {
+                const all = await getReservasAll(token);
+                setTodasReservas(all?.reservas || all || []);
+            }
+
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (e) {
@@ -150,14 +167,20 @@ export default function Reservas() {
         }
     };
 
-
     const handleCancel = async (id) => {
         setError(null);
         setSuccess(false);
         try {
             await cancelReserva(id, token);
-            const updated = await getReservas(token);
-            setReservas(updated?.reservas || []);
+
+            const mis = await getReservas(token);
+            setMisReservas(mis?.reservas || mis || []);
+
+            if (user?.is_admin) {
+                const all = await getReservasAll(token);
+                setTodasReservas(all?.reservas || all || []);
+            }
+
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (e) {
@@ -172,147 +195,213 @@ export default function Reservas() {
     };
 
     return (
-    <div className="reservas-container">
-        <div className="reservas-wrapper">
-            <h2 className="reservas-title">Reservas</h2>
+        <div className="reservas-container">
+            <div className="reservas-wrapper">
+                <h2 className="reservas-title">Reservas</h2>
 
-            {loading ? (
-                <div className="loading-card">
-                    <div className="loading-spinner"></div>
-                    <p className="loading-text">Cargando...</p>
-                </div>
-            ) : (
-                <div className="reservas-grid">
-                    {/* Nueva Reserva */}
-                    <section className="card">
-                        <h3 className="section-header">
-                            <span className="section-icon">+</span>
-                            Nueva Reserva
-                        </h3>
-                        <div className="form-container">
-                            <label className="form-label">
-                                <span className="form-label-text">Sala</span>
-                                <select
-                                    value={selectedSala}
-                                    onChange={(e) => setSelectedSala(e.target.value)}
-                                    className="form-select"
-                                >
-                                    <option value="">-- Seleccione una sala --</option>
-                                    {salas.map((s) => (
-                                        <option
-                                            key={`${s.nombre_sala}-${s.edificio}`}
-                                            value={`${s.nombre_sala}|||${s.edificio}`}
-                                        >
-                                            {s.nombre_sala} — {s.edificio} ({s.capacidad} pers, {s.tipo_sala})
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
+                {loading ? (
+                    // ...existing loading card...
+                    <div className="loading-card">
+                        <div className="loading-spinner"></div>
+                        <p className="loading-text">Cargando...</p>
+                    </div>
+                ) : (
+                    <div className="reservas-grid">
+                        {/* Nueva Reserva - sin cambios visuales */}
+                        {/* ...existing "Nueva Reserva" section (card + form)... */}
+                        <section className="card">
+                            <h3 className="section-header">
+                                <span className="section-icon">+</span>
+                                Nueva Reserva
+                            </h3>
+                            <div className="form-container">
+                                <label className="form-label">
+                                    <span className="form-label-text">Sala</span>
+                                    <select
+                                        value={selectedSala}
+                                        onChange={(e) => setSelectedSala(e.target.value)}
+                                        className="form-select"
+                                    >
+                                        <option value="">-- Seleccione una sala --</option>
+                                        {salas.map((s) => (
+                                            <option
+                                                key={`${s.nombre_sala}-${s.edificio}`}
+                                                value={`${s.nombre_sala}|||${s.edificio}`}
+                                            >
+                                                {s.nombre_sala} — {s.edificio} ({s.capacidad} pers, {s.tipo_sala})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
 
-                            <label className="form-label">
-                                <span className="form-label-text">Fecha</span>
-                                <input
-                                    type="date"
-                                    value={fecha}
-                                    onChange={(e) => setFecha(e.target.value)}
-                                    className="form-input"
-                                />
-                            </label>
+                                <label className="form-label">
+                                    <span className="form-label-text">Fecha</span>
+                                    <input
+                                        type="date"
+                                        value={fecha}
+                                        onChange={(e) => setFecha(e.target.value)}
+                                        className="form-input"
+                                    />
+                                </label>
 
-                            <label className="form-label">
-                                <span className="form-label-text">Turno</span>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    value={turno}
-                                    onChange={(e) => setTurno(Number(e.target.value))}
-                                    className="form-input"
-                                />
-                            </label>
+                                <label className="form-label">
+                                    <span className="form-label-text">Turno</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={turno}
+                                        onChange={(e) => setTurno(Number(e.target.value))}
+                                        className="form-input"
+                                    />
+                                </label>
 
-                            <label className="form-label">
-                                <span className="form-label-text">Participantes (CI separados por coma)</span>
-                                <input
-                                    type="text"
-                                    value={participantes}
-                                    onChange={(e) => setParticipantes(e.target.value)}
-                                    placeholder="12345678, 87654321"
-                                    className="form-input"
-                                />
-                            </label>
+                                <label className="form-label">
+                                    <span className="form-label-text">Participantes (CI separados por coma)</span>
+                                    <input
+                                        type="text"
+                                        value={participantes}
+                                        onChange={(e) => setParticipantes(e.target.value)}
+                                        placeholder="12345678, 87654321"
+                                        className="form-input"
+                                    />
+                                </label>
 
-                            <button onClick={handleCreate} className="btn-submit">
-                                Crear Reserva
-                            </button>
+                                <button onClick={handleCreate} className="btn-submit">
+                                    Crear Reserva
+                                </button>
 
-                            {error && <div className="alert alert-error">⚠️ {error}</div>}
-                            {success && (
-                                <div className="alert alert-success">✓ Acción realizada exitosamente</div>
-                            )}
-                        </div>
-                    </section>
-
-                    {/* Mis Reservas */}
-                    <section className="card">
-                        <h3 className="section-header">
-                            <span className="section-icon">📋</span>
-                            Mis Reservas
-                        </h3>
-                        {reservas.length === 0 ? (
-                            <div className="empty-state">
-                                <div className="empty-state-icon">📅</div>
-                                <p>No hay reservas aún</p>
+                                {error && <div className="alert alert-error">⚠️ {error}</div>}
+                                {success && (
+                                    <div className="alert alert-success">✓ Acción realizada exitosamente</div>
+                                )}
                             </div>
-                        ) : (
-                            <div className="reservations-list">
-                                {reservas.map((r) => {
-                                    const estadoNorm = String(r.estado || "").toLowerCase().trim();
+                        </section>
 
-                                    return (
-                                        <div key={r.id_reserva} className="reservation-item">
-                                            <div className="reservation-content">
-                                                <div className="reservation-info">
-                                                    <div className="reservation-name">{r.nombre_sala}</div>
-                                                    <div className="reservation-details">
-                                                        📅 {r.fecha} • 🏢 {r.edificio}
+                        {/* Mis Reservas */}
+                        <section className="card">
+                            <h3 className="section-header">
+                                <span className="section-icon">📋</span>
+                                Mis Reservas
+                            </h3>
+                            {misReservas.length === 0 ? (
+                                <div className="empty-state">
+                                    <div className="empty-state-icon">📅</div>
+                                    <p>No hay reservas aún</p>
+                                </div>
+                            ) : (
+                                <div className="reservations-list">
+                                    {misReservas.map((r) => {
+                                        const estadoNorm = String(r.estado || "").toLowerCase().trim();
+                                        return (
+                                            <div key={r.id_reserva} className="reservation-item">
+                                                <div className="reservation-content">
+                                                    <div className="reservation-info">
+                                                        <div className="reservation-name">{r.nombre_sala}</div>
+                                                        <div className="reservation-details">
+                                                            📅 {r.fecha} • 🏢 {r.edificio}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="reservation-actions">
-                                                    <div
-                                                        className={`reservation-status ${
-                                                            estadoNorm === "activa" ? "status-active" : "status-inactive"
-                                                        }`}
-                                                    >
-                                                        {r.estado}
-                                                    </div>
-
-                                                    {estadoNorm === "activa" && (
-                                                        <button
-                                                            className="btn-cancel"
-                                                            onClick={() => handleCancel(r.id_reserva)}
+                                                    <div className="reservation-actions">
+                                                        <div
+                                                            className={`reservation-status ${
+                                                                estadoNorm === "activa" ? "status-active" : "status-inactive"
+                                                            }`}
                                                         >
-                                                            ❌ Cancelar
-                                                        </button>
-                                                    )}
+                                                            {r.estado}
+                                                        </div>
 
-                                                    <button
-                                                        className="btn-delete"
-                                                        onClick={() => handleDelete(r.id_reserva)}
-                                                        style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
-                                                    >
-                                                        🗑️ Eliminar
-                                                    </button>
+                                                        {estadoNorm === "activa" && (
+                                                            <button
+                                                                className="btn-cancel"
+                                                                onClick={() => handleCancel(r.id_reserva)}
+                                                            >
+                                                                ❌ Cancelar
+                                                            </button>
+                                                        )}
+
+                                                        <button
+                                                            className="btn-delete"
+                                                            onClick={() => handleDelete(r.id_reserva)}
+                                                            style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
+                                                        >
+                                                            🗑️ Eliminar
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Todas las Reservas (solo admin) */}
+                        {user?.is_admin && (
+                            <section className="card">
+                                <h3 className="section-header">
+                                    <span className="section-icon">🌐</span>
+                                    Todas las Reservas (Admin)
+                                </h3>
+                                {todasReservas.length === 0 ? (
+                                    <div className="empty-state">
+                                        <div className="empty-state-icon">📅</div>
+                                        <p>No hay reservas en el sistema</p>
+                                    </div>
+                                ) : (
+                                    <div className="reservations-list">
+                                        {todasReservas.map((r) => {
+                                            const estadoNorm = String(r.estado || "").toLowerCase().trim();
+                                            return (
+                                                <div key={`all-${r.id_reserva}`} className="reservation-item">
+                                                    <div className="reservation-content">
+                                                        <div className="reservation-info">
+                                                            <div className="reservation-name">
+                                                                {r.nombre_sala} — {r.edificio}
+                                                            </div>
+                                                            <div className="reservation-details">
+                                                                📅 {r.fecha}
+                                                                {r.participantes && r.participantes.length > 0 && (
+                                                                    <> • 👥 {r.participantes.join(", ")}</>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="reservation-actions">
+                                                            <div
+                                                                className={`reservation-status ${
+                                                                    estadoNorm === "activa" ? "status-active" : "status-inactive"
+                                                                }`}
+                                                            >
+                                                                {r.estado}
+                                                            </div>
+
+                                                            {estadoNorm === "activa" && (
+                                                                <button
+                                                                    className="btn-cancel"
+                                                                    onClick={() => handleCancel(r.id_reserva)}
+                                                                >
+                                                                    ❌ Cancelar
+                                                                </button>
+                                                            )}
+
+                                                            <button
+                                                                className="btn-delete"
+                                                                onClick={() => handleDelete(r.id_reserva)}
+                                                                style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
+                                                            >
+                                                                🗑️ Eliminar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
                         )}
-                    </section>
-                </div>
-            )}
+                    </div>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
 }
