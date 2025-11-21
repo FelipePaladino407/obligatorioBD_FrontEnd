@@ -10,7 +10,7 @@ export default function Salas() {
 
     const loadSalas = async () => {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://127.0.0.1:5000/api/v1/salas/", {
+        const res = await fetch("http://127.0.0.1:8080/api/v1/sala/", {
             headers: { "Authorization": `Bearer ${token}` }
         });
 
@@ -23,7 +23,7 @@ export default function Salas() {
     const crearSala = async () => {
         const token = localStorage.getItem("token");
 
-        const res = await fetch("http://127.0.0.1:5000/api/v1/salas/", {
+        const res = await fetch("http://127.0.0.1:8080/api/v1/sala/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -53,7 +53,7 @@ export default function Salas() {
 
             <ul>
                 {salas.map((s) => (
-                    <li key={s.id_sala}>{s.nombre}</li>
+                    <li key={s.id_sala}>{s.nombre_sala} | {s.edificio} | {s.estado_calculado}</li>
                 ))}
             </ul>
         </div>

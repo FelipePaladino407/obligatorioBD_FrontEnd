@@ -7,13 +7,14 @@ export default function Sanciones() {
         const fetchData = async () => {
             const token = localStorage.getItem("token");
 
-            const res = await fetch("http://127.0.0.1:5000/api/v1/sanciones/", {
+            const res = await fetch("http://127.0.0.1:8080/api/v1/sancion/me", {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setSanciones(data);
+                setSanciones(data.sanciones);
+            } else {
             }
         };
 

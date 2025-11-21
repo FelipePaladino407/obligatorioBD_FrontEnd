@@ -1,11 +1,26 @@
 import { Outlet, useNavigate } from "react-router-dom";
+import { logout as apiLogout } from "../services/api";
+import { useState } from "react";
 
 export default function AppLayout() {
     const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
 
-    const logout = () => {
-        localStorage.removeItem("token");
-        navigate("/login");
+    const handleLogout = async () => {
+        const token = localStorage.getItem("token");
+        setLoading(true);
+        try {
+            if (token) {
+                await apiLogout(token);
+            }
+        } catch (e) {
+            // If logout failed, still remove token locally but log the error
+            console.error("Error calling logout endpoint:", e);
+        } finally {
+            localStorage.removeItem("token");
+            setLoading(false);
+            navigate("/login");
+        }
     };
 
     return (
@@ -26,8 +41,8 @@ export default function AppLayout() {
                     <li onClick={() => navigate("/app/perfil")}>Perfil</li>
                 </ul>
 
-                <button onClick={logout} style={{ marginTop: 20 }}>
-                    Cerrar sesión
+                <button onClick={handleLogout} style={{ marginTop: 20 }} disabled={loading}>
+                    {loading ? "Cerrando..." : "Cerrar sesión"}
                 </button>
             </aside>
 

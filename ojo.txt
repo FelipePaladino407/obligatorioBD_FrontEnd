@@ -1,0 +1,409 @@
+from typing import List
+from flask import Blueprint, jsonify, request
+
+from app.auth import required_token, admin_required
+from app.models.sancion_model import SancionCreate
+from app.services.sancion_service import (
+    crear_sancion,
+    listar_sanciones,
+    listar_sanciones_por_correo,
+)
+from datetime import date
+
+sancion_bp = Blueprint("sancion", __name__)
+
+@sancion_bp.get("/")
+def list():
+    sanciones = listar_sanciones()
+    return jsonify(sanciones)
+
+
+@sancion_bp.post("/")
+@admin_required
+def create():
+    data = request.get_json(force=True)
+    sancion = SancionCreate(
+        ci_participante=data["ci_participante"],
+        fecha_inicio=data["fecha_inicio"],
+        fecha_fin=data["fecha_fin"],
+        motivo=data["motivo"],
+    )
+    crear_sancion(sancion)
+    return jsonify({"message": "Muchacho fletado"}), 201
+
+
+@sancion_bp.get("/me")
+@required_token
+def mis_sanciones():
+    """
+    Devuelve las sanciones del usuario logueado.
+    """
+    correo = getattr(request, "correo", None)
+    if not correo:
+        return jsonify({"error": "No se pudo obtener el correo del token"}), 401
+
+    try:
+        rows = listar_sanciones_por_correo(correo)
+    except Exception as e:
+        return jsonify({"error": f"Error consultando BD: {e}"}), 500
+
+    hoy = date.today()
+    sanciones = []
+    for row in rows:
+        sanciones.append(
+            {
+                "ci": row["ci_participante"],
+                "fecha_inicio": row["fecha_inicio"].isoformat(),
+                "fecha_fin": row["fecha_fin"].isoformat(),
+                "motivo": row["motivo"],
+                "activa": hoy >= row["fecha_inicio"] and hoy <= row["fecha_fin"],
+            }
+        )
+
+    return jsonify(
+        {
+            "correo": correo,
+            "total": len(sanciones),
+            "sanciones": sanciones,
+        }
+    ), 200
+
+
+from flask import Blueprint, jsonify, request
+from app.auth import admin_required
+from app.models.sala_model import SalaCreate, SalaUpdate
+from app.enums.tipo_sala import TipoSala
+from app.services.sala_service import (
+    create_sala,
+    listar_salas_con_estado,
+    get_sala,
+    update_sala,
+    eliminar_sala,
+    actualizar_estado_manual
+)
+
+sala_bp = Blueprint("salas", __name__)
+
+@sala_bp.get("/")
+def listar():
+    salas = listar_salas_con_estado()
+    return jsonify(salas)
+
+@sala_bp.post("/")
+@admin_required
+def crear():
+    data = request.get_json(force=True)
+
+    sala = SalaCreate(
+        nombre_sala=data["nombre_sala"],
+        edificio=data["edificio"],
+        capacidad=data["capacidad"],
+        tipo_sala=TipoSala(data["tipo_sala"])
+    )
+    try:
+        create_sala(sala)
+        return jsonify({"message": "Sala creada joya"}), 201
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@sala_bp.get("/<string:nombre_sala>/<string:edificio>")
+def obtener(nombre_sala: str, edificio: str):
+    sala = get_sala(nombre_sala, edificio)
+    if not sala:
+        return jsonify({"message": "Sala no encontrada"}), 404
+    return jsonify(sala)
+
+@sala_bp.patch("/")
+@admin_required
+def actualizar():
+    try:
+        data = request.get_json(force=True)
+
+        if "nombre_sala" not in data or "edificio" not in data:
+            return jsonify({"message": "Faltan identificadores: nombre_sala y edificio"}), 400
+        
+        nombre_sala = data["nombre_sala"]
+        edificio = data["edificio"]
+        
+        tipo_sala_enum = None
+        if "tipo_sala" in data:
+            try:
+                tipo_sala_enum = TipoSala(data["tipo_sala"])
+            except ValueError:
+                 return jsonify({"error": f"Tipo de sala inválido: {data['tipo_sala']}"}), 400
+
+        sala_update = SalaUpdate(
+            nombre_sala=nombre_sala,
+            edificio=edificio,
+            capacidad=data.get("capacidad"),
+            tipo_sala=tipo_sala_enum
+        )
+        update_sala(sala_update)
+        return jsonify({"message": "Sala actualizada correctamente"}), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error al actualizar la sala"}), 500
+
+@sala_bp.delete("/")
+@admin_required
+def eliminar():
+    data = request.get_json(force=True)
+
+    if "nombre_sala" not in data or "edificio" not in data:
+        return jsonify({"message": "Faltan ids: nombre_sala y edificio"}), 400
+
+    nombre_sala = data["nombre_sala"]
+    edificio = data["edificio"]
+
+    try:
+        eliminar_sala(nombre_sala, edificio)
+        return jsonify({"message": "Sala incinerada"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+@sala_bp.patch("/estado-manual")
+@admin_required
+def actualizar_estado():
+    data = request.get_json(force=True)
+    
+    if "nombre_sala" not in data or "edificio" not in data:
+        return jsonify({"message": "Faltan ids: nombre_sala y edificio"}), 400
+
+    nombre_sala = data["nombre_sala"]
+    edificio = data["edificio"]
+    nuevo_estado = data.get("nuevo_estado")
+    
+    try:
+        actualizar_estado_manual(nombre_sala, edificio, nuevo_estado)
+        return jsonify({"message": f"Estado manual actualizado a {nuevo_estado}"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+from flask import Blueprint, jsonify, request
+from app.auth import required_token
+from app.models.reserva_model import ReservaCreate
+from app.services.reserva_service import create_reserva, list_reservas, remove_reserva
+
+reserva_bp = Blueprint("reserva", __name__)
+
+@reserva_bp.get("/")
+@required_token
+def get_reservas():
+    reservas = list_reservas()
+    # Convertimos todo a tipos que JSON entiende
+    reservas_serializadas = [
+        {
+            "id": r["id_reserva"],
+            "nombre_sala": r["nombre_sala"],
+            "edificio": r["edificio"],
+            "fecha": r["fecha"].isoformat(),  # date → string
+            "id_turno": r["id_turno"],
+            "estado": r["estado"]
+        } for r in reservas
+    ]
+    print(reservas)
+    return jsonify(reservas_serializadas)
+
+
+@reserva_bp.post("/")
+@required_token
+def create():
+    data = request.get_json(force=True)
+    reserva = ReservaCreate(
+            participantes_ci=data["participantes_ci"],
+            nombre_sala=data["nombre_sala"],
+            edificio=data["edificio"],
+            fecha=data["fecha"],
+            id_turno=data["id_turno"],
+            estado=data["estado"],
+            )
+    try:
+        create_reserva(reserva)
+        return jsonify({"message": "Reserva creada"}), 201
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+@reserva_bp.delete("/<int:id>")
+@required_token
+def remove(id: int):
+    try:
+        pass
+        remove_reserva(id)
+        return jsonify({"message": "Reserva eliminada"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+from typing import TypedDict, Optional, cast
+from flask import Blueprint, jsonify, request
+from app.auth import required_token
+from app.services.reportes_service import ejecutar_consulta, ConsultaID
+
+reportes_bp = Blueprint("reportes", __name__)
+
+class ReporteParams(TypedDict, total=False):
+    desde: str
+    hasta: str
+    edificio: str
+    facultad: str
+    limit: int
+    offset: int
+
+@reportes_bp.get("/")
+@required_token
+def get_reportes():
+    id_consulta: str = request.args.get("id_consulta", "").strip()
+    params: ReporteParams = {
+            "desde": request.args.get("desde"),
+            "hasta": request.args.get("hasta"),
+            "edificio": request.args.get("edificio"),
+            "facultad": request.args.get("facultad"),
+            }
+    try:
+        params["limit"] = int(request.args.get("limit", "50"))
+        params["offset"] = int(request.args.get("offset", "0"))
+    except ValueError:
+        return jsonify({"error": "limit/offset inválidos"}), 400
+
+    try:
+        payload = ejecutar_consulta(cast(ConsultaID, id_consulta), params)
+        return jsonify(payload), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error interno", "detail": str(e)}), 500
+
+
+from app.auth import required_token, admin_required
+from app.models.participante_model import ParticipanteCreate, ParticipanteRow, ParticipanteUpdate
+from app.services.participante_service import (
+    create_participante,
+    eliminar_participante,
+    listar_participantes,
+    update_participante,
+    obtener_datos_participante_por_correo,
+)
+from flask import Blueprint, jsonify, request
+
+
+participante_bp = Blueprint("participante", __name__)
+
+@participante_bp.get("/")
+def listar():
+    participantes = listar_participantes()
+    return jsonify(participantes)
+
+@participante_bp.post("/")
+@admin_required
+def crear():
+    data = request.get_json(force=True)
+    participante = ParticipanteCreate(
+        ci=data["ci"],
+        nombre=data["nombre"],
+        apellido=data["apellido"],
+        email=data["email"],
+    )
+    try:
+        create_participante(participante)
+        return jsonify({"message": "Participante creado"}), 201
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@participante_bp.delete("/<string:ci>")
+@admin_required
+def eliminar(ci: str):
+    try:
+        eliminar_participante(ci)
+        return jsonify({"message": "Participante eliminado"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@participante_bp.patch("/<string:ci>")
+@admin_required
+def actualizar(ci: str):
+    data = request.get_json(force=True)
+    participante_update = ParticipanteUpdate(
+        ci=ci,
+        nombre=data.get("nombre"),
+        apellido=data.get("apellido"),
+        email=data.get("email"),
+    )
+    try:
+        update_participante(participante_update)
+        return jsonify({"message": "Participante actualizado correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+# Para FronTend BlackMan:
+@participante_bp.get("/me")
+@required_token
+def mis_datos():
+    correo = getattr(request, "correo", None)
+
+    if not correo:
+        return jsonify({"error": "No se pudo obtener el correo del token"}), 401
+
+    try:
+        row = obtener_datos_participante_por_correo(correo)
+    except Exception as e:
+        return jsonify({"error": f"Error consultando BD: {e}"}), 500
+
+    if not row:
+        return jsonify({"error": "Participante no encontrado"}), 404
+
+    return jsonify({
+        "ci": row["ci"],
+        "nombre": row["nombre"],
+        "apellido": row["apellido"],
+        "email": row["email"],
+        "carrera": row.get("carrera"),
+        "tipo_programa": row.get("tipo_programa"),
+        "rol": row.get("rol"),
+        "facultad": row.get("facultad"),
+    }), 200
+
+# app/routes/auth_routes.py
+from flask import Blueprint, request, jsonify
+from app.auth import generate_token, required_token, revocar_sesion  # aniado lo del toquen requerido y lo de revocar secion.
+import bcrypt
+from app.services.auth_service import verify_user
+
+auth_bp = Blueprint("auth", __name__)
+
+@auth_bp.post("/login")
+def login():
+    data = request.get_json(force=True)
+    correo = data.get("correo")
+    contrasena = data.get("contrasena")
+
+    user = verify_user(correo, contrasena)
+    if not user:
+        return jsonify({"error": "Credenciales inválidas"}), 401
+
+    is_admin = bool(user["isAdmin"])
+
+    token = generate_token(correo=user["correo"], is_admin=is_admin)
+    return jsonify({"token": token}), 200
+
+
+@auth_bp.post("/logout")
+@required_token
+def logout():
+    """
+    Cierra la *sesión actual* (no todas).
+    Usa el session_id que viene del token.
+    """
+    sesion_id = getattr(request, "session_id", None)
+    if not sesion_id:
+        return jsonify({"error": "No se pudo determinar la sesión"}), 400
+
+    try:
+        revocar_sesion(sesion_id)
+    except Exception as e:
+        return jsonify({"error": f"No se pudo cerrar sesión: {e}"}), 500
+
+    return jsonify({"message": "Logout exitoso"}), 200

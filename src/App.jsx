@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState } from "react";
 import Login from "./pages/Login";
-import AppLayout from "../layout/AppLayout";
 import Reservas from "./pages/Reservas";
 import Sanciones from "./pages/Sanciones";
 import Salas from "./pages/Salas";
 import Perfil from "./pages/Perfil";
+import AppLayout from "./layout/AppLayout";
+import "./App.css";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(!!localStorage.getItem("token"));

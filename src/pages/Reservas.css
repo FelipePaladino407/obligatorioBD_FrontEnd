@@ -1,0 +1,80 @@
+:root{
+  --bg:#0f1724;
+  --card:#0b1220;
+  --muted:#9aa4b2;
+  --accent:#6ee7b7;
+  --danger:#ff6b6b;
+  --glass: rgba(255,255,255,0.04);
+  --radius:12px;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Page layout */
+.reservas-root{
+  max-width:1100px;
+  margin:28px auto;
+  padding:20px;
+  color: #e6eef6;
+}
+
+.reservas-grid{
+  display:grid;
+  grid-template-columns: 1fr 360px;
+  gap:20px;
+}
+
+/* Card */
+.card{
+  background: linear-gradient(180deg,var(--card), rgba(11,18,32,0.7));
+  border-radius: var(--radius);
+  padding:16px;
+  box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.card h3{ margin:0 0 10px 0; font-size:1.05rem }
+
+/* Form */
+.res-form{ display:flex; flex-direction:column; gap:10px }
+.res-form label{ font-size:0.9rem; color:var(--muted) }
+.res-form input[type="text"],
+.res-form input[type="date"],
+.res-form input[type="number"],
+.res-form select{
+  width:100%;
+  margin-top:6px;
+  padding:8px 10px;
+  border-radius:8px;
+  background:var(--glass);
+  border:1px solid rgba(255,255,255,0.03);
+  color:inherit;
+  outline: none;
+}
+
+.res-form button{
+  margin-top:6px;
+  padding:10px 14px;
+  background: linear-gradient(90deg,var(--accent), #4fd1c5);
+  color:#062023;
+  border:none;
+  border-radius:8px;
+  font-weight:600;
+  cursor:pointer;
+}
+.res-form button:hover{ filter:brightness(0.95) }
+
+.error-msg{ color:var(--danger); font-size:0.9rem }
+
+/* Reserva list */
+.res-list{ display:flex; flex-direction:column; gap:8px }
+.res-item{
+  display:flex; justify-content:space-between; gap:12px; align-items:center;
+  padding:10px; border-radius:10px; background:rgba(255,255,255,0.02);
+  border:1px solid rgba(255,255,255,0.02);
+}
+.res-item small{ color:var(--muted) }
+
+/* Responsive */
+@media (max-width:900px){
+  .reservas-grid{ grid-template-columns: 1fr; }
+}
