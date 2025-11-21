@@ -41,58 +41,58 @@ export default function AppLayout() {
 
                 <nav className="sidebar-nav">
                     <ul className="nav-list">
-                        <li 
+                        <li
                             className={`nav-item ${isActive("/app/reservas")}`}
                             onClick={() => navigate("/app/reservas")}
                         >
                             <span className="nav-icon">📅</span>
                             <span>Reservas</span>
                         </li>
-                        <li 
+                        <li
                             className={`nav-item ${isActive("/app/sanciones")}`}
                             onClick={() => navigate("/app/sanciones")}
                         >
                             <span className="nav-icon">⚠️</span>
                             <span>Sanciones</span>
                         </li>
-                        <li 
+                        <li
                             className={`nav-item ${isActive("/app/salas")}`}
                             onClick={() => navigate("/app/salas")}
                         >
                             <span className="nav-icon">🏢</span>
                             <span>Salas</span>
                         </li>
-                                                <li 
-                                                        className={`nav-item ${isActive("/app/perfil")}`}
-                                                        onClick={() => navigate("/app/perfil")}
-                                                >
-                                                        <span className="nav-icon">👤</span>
-                                                        <span>Perfil</span>
-                                                </li>
-                                                {user?.is_admin && (
-                                                    <li 
-                                                        className={`nav-item ${isActive("/app/reportes")}`}
-                                                        onClick={() => navigate("/app/reportes")}
-                                                    >
-                                                        <span className="nav-icon">📊</span>
-                                                        <span>Reportes</span>
-                                                    </li>
-                                                )}
-                                                {user?.is_admin && (
-                                                    <li 
-                                                        className={`nav-item ${isActive("/app/usuarios")}`}
-                                                        onClick={() => navigate("/app/usuarios")}
-                                                    >
-                                                        <span className="nav-icon">👥</span>
-                                                        <span>Usuarios</span>
-                                                    </li>
-                                                )}
+                        <li
+                            className={`nav-item ${isActive("/app/perfil")}`}
+                            onClick={() => navigate("/app/perfil")}
+                        >
+                            <span className="nav-icon">👤</span>
+                            <span>Perfil</span>
+                        </li>
+                        {user?.is_admin && (
+                            <li
+                                className={`nav-item ${isActive("/app/reportes")}`}
+                                onClick={() => navigate("/app/reportes")}
+                            >
+                                <span className="nav-icon">📊</span>
+                                <span>Reportes</span>
+                            </li>
+                        )}
+                        {user?.is_admin && (
+                            <li
+                                className={`nav-item ${isActive("/app/usuarios")}`}
+                                onClick={() => navigate("/app/usuarios")}
+                            >
+                                <span className="nav-icon">👥</span>
+                                <span>Usuarios</span>
+                            </li>
+                        )}
                     </ul>
                 </nav>
 
                 <div className="sidebar-footer">
-                    <button 
-                        onClick={handleLogout} 
+                    <button
+                        onClick={handleLogout}
                         className="logout-button"
                         disabled={loading}
                     >

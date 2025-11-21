@@ -62,6 +62,57 @@ export async function createSala(payload, token) {
   return request("/sala/", "POST", payload, token);
 }
 
+export async function cancelReserva(id, token) {
+  const res = await fetch(`${baseUrl}/reserva/${id}/cancelar`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  // leemos el body como texto una sola vez
+  const raw = await res.text();
+
+  let data;
+  try {
+    data = JSON.parse(raw); // intentamos parsear como JSON
+  } catch {
+    // si no es JSON, lo dejamos como texto
+    data = { error: raw };
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || data.message || "Error al cancelar reserva");
+  }
+
+  return data;
+}
+
+export async function deleteReserva(id, token) {
+  return request(`/reserva/${id}`, "DELETE", null, token);
+}
+
+export async function getSanciones(token, me = false) {
+  // me = true: sanciones del usuario logueado
+  const path = me ? "/sancion/me" : "/sancion/";
+  return request(path, "GET", null, token);
+}
+
+export async function createSancion(payload, token) {
+  return request("/sancion/", "POST", payload, token);
+}
+
+export async function getUsuarios(token) {
+  return request("/usuarios/", "GET", null, token);
+}
+
+export async function deleteSancion(ci_participante, token) {
+  return request(`/sancion/${ci_participante}`, "DELETE", null, token);
+}
+
+
+
 export default {
   getSalas,
   getReservas,
@@ -70,4 +121,10 @@ export default {
   getReportes,
   getParticipantes,
   createSala,
+  cancelReserva,
+  deleteReserva,
+  getSanciones,
+  createSancion,
+  getUsuarios,
+  deleteSancion,
 };

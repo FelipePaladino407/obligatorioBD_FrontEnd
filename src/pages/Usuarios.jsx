@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getParticipantes } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
+/*poner que soporte caracteres utf84 o algo asi*/
 export default function Usuarios() {
   const { user } = useAuth();
   const token = localStorage.getItem("token");
