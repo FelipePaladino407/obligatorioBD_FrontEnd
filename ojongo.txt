@@ -1,0 +1,622 @@
+def create_app() -> Flask:
+    app = Flask(__name__)
+    CORS(app)
+    app.register_blueprint(participante_bp, url_prefix="/api/v1/participante")
+    app.register_blueprint(reserva_bp, url_prefix="/api/v1/reserva")
+    app.register_blueprint(sancion_bp, url_prefix="/api/v1/sancion")
+    app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
+    app.register_blueprint(sala_bp, url_prefix="/api/v1/sala")
+    app.register_blueprint(reportes_bp, url_prefix="/api/v1/reportes")
+    app.register_blueprint(edificio_bp, url_prefix="/api/v1/edificio")
+    app.register_blueprint(incidencia_bp, url_prefix="/api/v1/incidencia")
+    app.register_blueprint(alerta_bp, url_prefix="/api/v1/alerta")
+    return app
+
+from typing import List, Dict
+from app.db import execute_query
+
+def listar_alertas_usuario(correo: str) -> List[Dict]:
+    """
+    Devuelve todas las alertas asociadas a reservas en las que participa
+    el usuario cuyo correo se pasa por parámetro.
+    """
+    sql = """
+        SELECT ar.id_alerta,
+               ar.tipo_alerta,
+               ar.mensaje,
+               ar.fecha_creacion,
+               ar.leida,
+               ar.id_reserva,
+               i.descripcion AS incidencia_descripcion,
+               i.gravedad    AS incidencia_gravedad,
+               i.estado      AS incidencia_estado
+        FROM alerta_reserva ar
+        JOIN reserva r ON r.id_reserva = ar.id_reserva
+        JOIN reserva_participante rp ON rp.id_reserva = r.id_reserva
+        JOIN participante p ON p.ci = rp.ci_participante
+        JOIN incidencia_sala i ON i.id_incidencia = ar.id_incidencia
+        WHERE p.email = %s
+        ORDER BY ar.fecha_creacion DESC;
+    """
+    return execute_query(sql, (correo,), fetch=True)
+
+@auth_bp.post("/login")
+def login():
+    data = request.get_json(force=True)
+    correo = data.get("correo")
+    contrasena = data.get("contrasena")
+
+    user = verify_user(correo, contrasena)
+    if not user:
+        return jsonify({"error": "Credenciales inválidas"}), 401
+
+    is_admin = bool(user["isAdmin"])
+
+    token = generate_token(correo=user["correo"], is_admin=is_admin)
+    return jsonify({"token": token}), 200
+
+
+@auth_bp.post("/logout")
+@required_token
+def logout():
+    """
+    Cierra la *sesión actual* (no todas).
+    Usa el session_id que viene del token.
+    """
+    sesion_id = getattr(request, "session_id", None)
+    if not sesion_id:
+        return jsonify({"error": "No se pudo determinar la sesión"}), 400
+
+    try:
+        revocar_sesion(sesion_id)
+    except Exception as e:
+        return jsonify({"error": f"No se pudo cerrar sesión: {e}"}), 500
+
+    return jsonify({"message": "Logout exitoso"}), 200
+
+
+@auth_bp.patch("/cambiar_contrasena")
+@required_token
+def cambiar_contrasena():
+    data = request.get_json(force=True)
+    actual = data.get("contrasena_actual")
+    nueva = data.get("nueva_contrasena")
+
+    correo = getattr(request, "correo", None)
+    if not correo:
+        return jsonify({"error": "No se pudo obtener el usuario"}), 401
+
+    try:
+        cambiar_contrasena_service(correo, actual, nueva)
+        return jsonify({"message": "Contraseña actualizada correctamente"}), 200
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception as e:
+        return jsonify({"error": f"Error: {str(e)}"}), 500
+
+
+@edificio_bp.get("/")
+@required_token
+def get_edificios():
+    try:
+        edificios = listar_edificios()
+        return jsonify(edificios), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+@incidencia_bp.post("/")
+@required_token
+def crear():
+    correo = getattr(request, "correo", None)
+    if not correo:
+        return jsonify({"error": "No autenticado"}), 401
+
+    data = request.get_json(force=True)
+
+    # Buscar CI por correo
+    sql_ci = "SELECT ci FROM participante WHERE email = %s LIMIT 1;"
+    rows_ci = execute_query(sql_ci, (correo,), fetch=True)
+
+    if not rows_ci:
+        return jsonify({"error": "No se encontró participante para ese correo"}), 400
+
+    ci_reportante = rows_ci[0]["ci"]
+
+    incidencia = IncidenciaCreate(
+        nombre_sala=data["nombre_sala"],
+        edificio=data["edificio"],
+        ci_reportante=ci_reportante,
+        tipo=TipoIncidencia(data["tipo"]),
+        gravedad=GravedadIncidencia(data["gravedad"]),
+        descripcion=data["descripcion"],
+        id_reserva=data.get("id_reserva"),
+    )
+
+    # Crear incidencia en la BD
+    id_incidencia = crear_incidencia(incidencia)
+
+    # Propagar alertas a reservas futuras según gravedad
+    mensaje_base = f"Incidencia reportada: {incidencia.descripcion}"
+    creadas = propagar_alertas_por_incidencia(
+        id_incidencia=id_incidencia,
+        nombre_sala=incidencia.nombre_sala,
+        edificio=incidencia.edificio,
+        gravedad=incidencia.gravedad.value,
+        mensaje_base=mensaje_base,
+    )
+
+    return jsonify({
+        "id_incidencia": id_incidencia,
+        "alertas_creadas": creadas
+    }), 201
+
+
+
+@incidencia_bp.get("/sala")
+@admin_required
+def listar_por_sala():
+    nombre_sala = request.args.get("nombre_sala")
+    edificio = request.args.get("edificio")
+    filas = listar_incidencias_por_sala(nombre_sala, edificio)
+    return jsonify(filas), 200
+
+
+@incidencia_bp.patch("/<int:id>/estado")
+@admin_required
+def cambiar_estado(id: int):
+    data = request.get_json(force=True)
+    nuevo_estado = EstadoIncidencia(data["nuevo_estado"])
+    upd = IncidenciaUpdateEstado(id_incidencia=id, nuevo_estado=nuevo_estado)
+    actualizar_estado_incidencia(upd)
+    return jsonify({"message": "Estado actualizado"}), 200
+
+
+@participante_bp.get("/")
+def listar():
+    try:
+        participantes = listar_participantes()
+        return jsonify(participantes), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@participante_bp.post("/")
+@admin_required
+def crear():
+    data = request.get_json(force=True)
+
+    participante = ParticipanteCreate(
+        ci=data["ci"],
+        nombre=data["nombre"],
+        apellido=data["apellido"],
+        email=data["email"],
+    )
+
+    try:
+        # 1) crear participante
+        create_participante(participante)
+
+        # 2) crear login
+        sql_login = """
+            INSERT INTO login (correo, contrasena, isAdmin)
+            VALUES (%s, %s, false);
+        """
+        execute_query(sql_login, (participante.email, data["password"]), fetch=False)
+
+        return jsonify({"message": "Participante + login creados"}), 201
+
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@participante_bp.delete("/<string:ci>")
+@admin_required
+def eliminar(ci: str):
+    try:
+        eliminar_participante(ci)
+        return jsonify({"message": "Participante eliminado"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@participante_bp.patch("/<string:ci>")
+@admin_required
+def actualizar(ci: str):
+    data = request.get_json(force=True)
+    participante_update = ParticipanteUpdate(
+        ci=ci,
+        nombre=data.get("nombre"),
+        apellido=data.get("apellido"),
+        email=data.get("email"),
+    )
+    try:
+        update_participante(participante_update)
+        return jsonify({"message": "Participante actualizado correctamente"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+# Para FronTend BlackMan:
+@participante_bp.get("/me")
+@required_token
+def mis_datos():
+    correo = getattr(request, "correo", None)
+
+    if not correo:
+        return jsonify({"error": "No se pudo obtener el correo del token"}), 401
+
+    try:
+        row = obtener_datos_participante_por_correo(correo)
+    except Exception as e:
+        return jsonify({"error": f"Error consultando BD: {e}"}), 500
+
+    if not row:
+        return jsonify({"error": "Participante no encontrado"}), 404
+
+    return jsonify({
+        "ci": row["ci"],
+        "nombre": row["nombre"],
+        "apellido": row["apellido"],
+        "email": row["email"],
+        "carrera": row.get("carrera"),
+        "tipo_programa": row.get("tipo_programa"),
+        "rol": row.get("rol"),
+        "facultad": row.get("facultad"),
+        "is_admin": bool(getattr(request, "is_admin", False)),
+    }), 200
+
+@reportes_bp.get("/")
+@required_token
+def get_reportes():
+    id_consulta: str = request.args.get("id_consulta", "").strip()
+    params: ReporteParams = {
+            "desde": request.args.get("desde"),
+            "hasta": request.args.get("hasta"),
+            "edificio": request.args.get("edificio"),
+            "facultad": request.args.get("facultad"),
+            }
+    try:
+        params["limit"] = int(request.args.get("limit", "50"))
+        params["offset"] = int(request.args.get("offset", "0"))
+    except ValueError:
+        return jsonify({"error": "limit/offset inválidos"}), 400
+
+    try:
+        payload = ejecutar_consulta(cast(ConsultaID, id_consulta), params)
+        return jsonify(payload), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error interno", "detail": str(e)}), 500
+
+
+@reserva_bp.get("/")
+@required_token
+def get_reservas():
+    try:
+        reservas = list_reservas()
+        # Convertimos todo a tipos que JSON entiende
+        reservas_serializadas = [
+            {
+                "id": r["id_reserva"],
+                "nombre_sala": r["nombre_sala"],
+                "edificio": r["edificio"],
+                "fecha": r["fecha"].isoformat(),  # date → string
+                "id_turno": r["id_turno"],
+                "estado": r["estado"]
+            } for r in reservas
+        ]
+        print(reservas)
+        return jsonify(reservas_serializadas)
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@reserva_bp.post("/")
+@required_token
+def create():
+    data = request.get_json(force=True) or {}
+
+    # Validar que vengan todas las claves necesarias
+    required_fields = ["nombre_sala", "edificio", "fecha", "id_turno", "participantes_ci"]
+    missing = [f for f in required_fields if f not in data]
+
+    if missing:
+        return jsonify({
+            "error": f"Faltan campos obligatorios en el body: {', '.join(missing)}"
+        }), 400
+
+    force = data.get("force", False)
+
+    reserva = ReservaCreate(
+        nombre_sala=data["nombre_sala"],
+        edificio=data["edificio"],
+        fecha=data["fecha"],
+        id_turno=data["id_turno"],
+        estado="activa",
+        participantes_ci=data["participantes_ci"]
+    )
+
+    try:
+        id_res = create_reserva(reserva, force)
+        return jsonify({"message": "Reserva creada", "id_reserva": id_res}), 201
+
+    except Warning as w:
+        return jsonify(w.args[0]), 409
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+
+@reserva_bp.delete("/<int:id>")
+@admin_required
+def remove(id: int):
+    try:
+        remove_reserva(id)
+        return jsonify({"message": "Reserva eliminada por admin"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@reserva_bp.get("/mias")
+@required_token
+def mis_reservas():
+    correo = getattr(request, "correo", None)
+    if not correo:
+        return jsonify({"error": "No se pudo obtener usuario del token"}), 401
+
+    try:
+        reservas = list_reservas_usuario(correo)
+    except Exception as e:
+        return jsonify({"error": f"{e}"}), 500
+
+    # Serializar
+    reservas_serializadas = [
+        {
+            "id_reserva": r["id_reserva"],
+            "nombre_sala": r["nombre_sala"],
+            "edificio": r["edificio"],
+            "fecha": r["fecha"].isoformat(),
+            "id_turno": r["id_turno"],
+            "estado": r["estado"],
+        }
+        for r in reservas
+    ]
+
+    return jsonify(reservas_serializadas), 200
+
+
+@reserva_bp.patch("/<int:id>/cancelar")
+@required_token
+def cancelar_mia(id: int):
+    correo = getattr(request, "correo", None)
+    if not correo:
+        return jsonify({"error": "No se pudo obtener usuario del token"}), 401
+
+    try:
+        cancelar_reserva_usuario(id, correo)
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"message": "Reserva cancelada correctamente"}), 200
+
+
+@sala_bp.get("/")
+def listar():
+    try:
+        salas = listar_salas()
+        return jsonify(salas), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+@sala_bp.post("/")
+@admin_required
+def crear():
+    data = request.get_json(force=True)
+
+    sala = SalaCreate(
+        nombre_sala=data["nombre_sala"],
+        edificio=data["edificio"],
+        capacidad=data["capacidad"],
+        tipo_sala=TipoSala(data["tipo_sala"])
+    )
+    try:
+        create_sala(sala)
+        return jsonify({"message": "Sala creada joya"}), 201
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+
+@sala_bp.get("/<string:nombre_sala>/<string:edificio>")
+def obtener(nombre_sala: str, edificio: str):
+    sala = get_sala(nombre_sala, edificio)
+    if not sala:
+        return jsonify({"message": "Sala no encontrada"}), 404
+    return jsonify(sala)
+
+@sala_bp.patch("/")
+@admin_required
+def actualizar():
+    try:
+        data = request.get_json(force=True)
+
+        if "nombre_sala" not in data or "edificio" not in data:
+            return jsonify({"message": "Faltan identificadores: nombre_sala y edificio"}), 400
+        
+        nombre_sala = data["nombre_sala"]
+        edificio = data["edificio"]
+        
+        tipo_sala_enum = None
+        if "tipo_sala" in data:
+            try:
+                tipo_sala_enum = TipoSala(data["tipo_sala"])
+            except ValueError:
+                 return jsonify({"error": f"Tipo de sala inválido: {data['tipo_sala']}"}), 400
+
+        sala_update = SalaUpdate(
+            nombre_sala=nombre_sala,
+            edificio=edificio,
+            capacidad=data.get("capacidad"),
+            tipo_sala=tipo_sala_enum
+        )
+        update_sala(sala_update)
+        return jsonify({"message": "Sala actualizada correctamente"}), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error al actualizar la sala"}), 500
+
+@sala_bp.delete("/")
+@admin_required
+def eliminar():
+    data = request.get_json(force=True)
+
+    if "nombre_sala" not in data or "edificio" not in data:
+        return jsonify({"message": "Faltan ids: nombre_sala y edificio"}), 400
+
+    nombre_sala = data["nombre_sala"]
+    edificio = data["edificio"]
+
+    try:
+        eliminar_sala(nombre_sala, edificio)
+        return jsonify({"message": "Sala incinerada"}), 200
+    except Exception as e:
+        return jsonify({"error": f"{str(e)}"}), 500
+
+@sala_bp.patch("/estado_manual/<string:nombre>/<string:edificio>")
+@admin_required
+def actualizar_estado_manual(nombre: str, edificio: str):
+    """
+    Permite a un ADMIN actualizar el estado manual de una sala.
+    Estados válidos: 'operativa', 'con_inconvenientes', 'fuera_de_servicio'.
+    """
+    data = request.get_json(force=True)
+    nuevo_estado = data.get("estado")
+
+    if nuevo_estado not in VALID_ESTADOS_SALA:
+        return jsonify({
+            "error": "Estado inválido. Debe ser 'operativa', 'con_inconvenientes' o 'fuera_de_servicio'"
+        }), 400
+
+    # Verificar que la sala exista
+    sql_check = """
+        SELECT nombre_sala, edificio, estado
+        FROM sala
+        WHERE nombre_sala = %s AND edificio = %s;
+    """
+    rows = execute_query(sql_check, (nombre, edificio), fetch=True)
+    if not rows:
+        return jsonify({"error": "Sala no encontrada"}), 404
+
+    # Actualizar estado manual
+    sql_update = """
+        UPDATE sala
+        SET estado = %s
+        WHERE nombre_sala = %s AND edificio = %s;
+    """
+    execute_query(sql_update, (nuevo_estado, nombre, edificio), fetch=False)
+
+    return jsonify({
+        "message": "Estado manual actualizado correctamente",
+        "sala": nombre,
+        "edificio": edificio,
+        "estado_manual": nuevo_estado
+    }), 200
+
+
+@sala_bp.get("/estado")
+@required_token
+def listar_estado_salas():
+    """
+    Devuelve el estado calculado de todas las salas.
+    """
+    query = """
+        SELECT
+            nombre_sala,
+            edificio,
+            estado_calculado,
+            estado_manual
+        FROM vista_estado_sala;
+    """
+    result = execute_query(query, None, fetch=True)
+    return jsonify(result), 200
+
+
+@sala_bp.get("/estado/<string:nombre>/<string:edificio>")
+@required_token
+def estado_sala_especifica(nombre, edificio):
+    query = """
+        SELECT
+            nombre_sala,
+            edificio,
+            estado_calculado,
+            estado_manual
+        FROM vista_estado_sala
+        WHERE nombre_sala = %s AND edificio = %s;
+    """
+
+    result = execute_query(query, (nombre, edificio), fetch=True)
+
+    if not result:
+        return jsonify({"error": "Sala no encontrada"}), 404
+
+    return jsonify(result[0]), 200
+
+@sancion_bp.get("/")
+def list():
+    sanciones = listar_sanciones()
+    return jsonify(sanciones)
+
+
+@sancion_bp.post("/")
+@admin_required
+def create():
+    data = request.get_json(force=True)
+    sancion = SancionCreate(
+        ci_participante=data["ci_participante"],
+        fecha_inicio=data["fecha_inicio"],
+        fecha_fin=data["fecha_fin"],
+        motivo=data["motivo"],
+    )
+    crear_sancion(sancion)
+    return jsonify({"message": "Muchacho fletado"}), 201
+
+
+@sancion_bp.get("/me")
+@required_token
+def mis_sanciones():
+    """
+    Devuelve las sanciones del usuario logueado.
+    """
+    correo = getattr(request, "correo", None)
+    if not correo:
+        return jsonify({"error": "No se pudo obtener el correo del token"}), 401
+
+    try:
+        rows = listar_sanciones_por_correo(correo)
+    except Exception as e:
+        return jsonify({"error": f"Error consultando BD: {e}"}), 500
+
+    hoy = date.today()
+    sanciones = []
+    for row in rows:
+        sanciones.append(
+            {
+                "ci": row["ci_participante"],
+                "fecha_inicio": row["fecha_inicio"].isoformat(),
+                "fecha_fin": row["fecha_fin"].isoformat(),
+                "motivo": row["motivo"],
+                "activa": hoy >= row["fecha_inicio"] and hoy <= row["fecha_fin"],
+            }
+        )
+
+    return jsonify(
+        {
+            "correo": correo,
+            "total": len(sanciones),
+            "sanciones": sanciones,
+        }
+    ), 200

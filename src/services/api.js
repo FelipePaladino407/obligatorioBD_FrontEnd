@@ -34,6 +34,11 @@ export async function getSalas(token) {
   return request("/sala/", "GET", null, token);
 }
 
+
+export async function updateSala(payload, token, edificio, sala) {
+  return request(`/sala/${edificio}/${sala}`, "PATCH", payload, token);
+}
+
 export async function getReservas(token) {
   return request("/reserva/mias", "GET", null, token);
 }
