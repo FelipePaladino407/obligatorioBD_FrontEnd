@@ -84,7 +84,7 @@ export default function AppLayout() {
                                 onClick={() => navigate("/app/usuarios")}
                             >
                                 <span className="nav-icon">👥</span>
-                                <span>Usuarios</span>
+                                <span>Participantes</span>
                             </li>
                         )}
                     </ul>

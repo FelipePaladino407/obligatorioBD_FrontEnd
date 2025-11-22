@@ -67,6 +67,11 @@ export async function getParticipantes(token) {
   return request("/participante/", "GET", null, token);
 }
 
+export async function updateParticipante(ci, payload, token) {
+  // payload debe venir con { participante: {...}, programa: {...} }
+  return request(`/participante/${ci}`, "PATCH", payload, token);
+}
+
 export async function createSala(payload, token) {
   return request("/sala/", "POST", payload, token);
 }
@@ -129,6 +134,7 @@ export default {
   logout,
   getReportes,
   getParticipantes,
+  updateParticipante,
   createSala,
   cancelReserva,
   deleteReserva,

@@ -5,25 +5,6 @@ import { useAuth } from "../context/AuthContext";
 import "./Reservas.css";
 
 export default function Reservas() {
-
-  const TURNOS = [
-    { id: 1, inicio: "08:00", fin: "09:00" },
-    { id: 2, inicio: "09:00", fin: "10:00" },
-    { id: 3, inicio: "10:00", fin: "11:00" },
-    { id: 4, inicio: "11:00", fin: "12:00" },
-    { id: 5, inicio: "12:00", fin: "13:00" },
-    { id: 6, inicio: "13:00", fin: "14:00" },
-    { id: 7, inicio: "14:00", fin: "15:00" },
-    { id: 8, inicio: "15:00", fin: "16:00" },
-    { id: 9, inicio: "16:00", fin: "17:00" },
-    { id: 10, inicio: "17:00", fin: "18:00" },
-    { id: 11, inicio: "18:00", fin: "19:00" },
-    { id: 12, inicio: "19:00", fin: "20:00" },
-    { id: 13, inicio: "20:00", fin: "21:00" },
-    { id: 14, inicio: "21:00", fin: "22:00" },
-    { id: 15, inicio: "22:00", fin: "23:00" },
-  ];
-
     const { user } = useAuth();
 
     const [misReservas, setMisReservas] = useState([]);      // antes: reservas
@@ -263,21 +244,15 @@ export default function Reservas() {
                                     />
                                 </label>
 
-                                
                                 <label className="form-label">
                                     <span className="form-label-text">Turno</span>
-                                    <select
+                                    <input
+                                        type="number"
+                                        min={1}
                                         value={turno}
                                         onChange={(e) => setTurno(Number(e.target.value))}
-                                        className="form-select"
-                                    >
-                                        <option value="">-- Seleccione un turno --</option>
-                                        {TURNOS.map(t => (
-                                            <option key={t.id} value={t.id}>
-                                                {t.id} — {t.inicio} a {t.fin}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        className="form-input"
+                                    />
                                 </label>
 
                                 <label className="form-label">
