@@ -62,6 +62,15 @@ export default function AppLayout() {
                             <span className="nav-icon">🏢</span>
                             <span>Salas</span>
                         </li>
+
+                        <li
+                            className={`nav-item ${isActive("/app/incidencias")}`}
+                            onClick={() => navigate("/app/incidencias")}
+                        >
+                            <span className="nav-icon">🛠️</span>
+                            <span>Incidencias</span>
+                        </li>
+
                         <li
                             className={`nav-item ${isActive("/app/perfil")}`}
                             onClick={() => navigate("/app/perfil")}

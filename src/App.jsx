@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Reservas from "./pages/Reservas";
 import Reportes from "./pages/Reportes";
 import Sanciones from "./pages/Sanciones";
+import IncidenciasAlertas from "./pages/IncidenciasAlertas";
 import Salas from "./pages/Salas";
 import Perfil from "./pages/Perfil";
 import Usuarios from "./pages/Usuarios";
@@ -35,6 +36,8 @@ export default function App() {
             <Route path="salas" element={<Salas />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="usuarios" element={<Usuarios />} />
+
+              <Route path="incidencias" element={<IncidenciasAlertas />} />
 
           </Route>
         ) : (
