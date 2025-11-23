@@ -27,7 +27,7 @@ export default function Sanciones() {
     setLoadError(null);
     try {
       const token = localStorage.getItem("token");
-      const data = await getSanciones(token);
+      const data = await getSanciones(token, !user?.is_admin);
       setSanciones(data || []);
     } catch (e) {
       setLoadError(e.message || "Error cargando sanciones");

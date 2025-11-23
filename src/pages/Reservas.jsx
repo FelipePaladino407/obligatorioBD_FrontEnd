@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { getSalas, getReservas, createReserva, cancelReserva, deleteReserva, getReservasAll } from "../services/api";
+import {
+    getSalas,
+    getReservas,
+    createReserva,
+    cancelReserva,
+    deleteReserva,
+    getReservasAll,
+    markNoAsiste, // nuevo
+} from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Reservas.css";
@@ -159,13 +167,11 @@ export default function Reservas() {
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (e) {
-            const backendMsg =
-                e?.response?.data?.message ||
-                e?.response?.data?.error ||
-                e?.message ||
-                "";
+            // usamos el mensaje que ya arma `request` en api.js
+            const backendMsg = e?.message || "";
             let uiMsg = "Error al crear reserva";
-            if (/list index out of range/i.test(backendMsg)) {
+
+            if (/ci invalida|c.i. inválida|cedula invalida/i.test(backendMsg)) {
                 uiMsg = "CI inválida";
             } else if (/not found|no existe/i.test(backendMsg)) {
                 uiMsg = "CI no encontrada en el sistema";
@@ -174,6 +180,7 @@ export default function Reservas() {
             } else if (backendMsg) {
                 uiMsg = backendMsg;
             }
+
             setError(uiMsg);
             console.error(e);
         }
@@ -242,6 +249,40 @@ export default function Reservas() {
                 e?.message ||
                 "";
             setError(backendMsg || "Error al cancelar reserva");
+        }
+    };
+
+    // nuevo handler: marcar no asistencia
+    const handleNoAsiste = async (id, source = "admin") => {
+        setError(null);
+        setSuccess(false);
+
+        const numericId = Number(id);
+        if (!Number.isInteger(numericId) || numericId <= 0) {
+            setError("No se pudo marcar: identificador de reserva inválido");
+            return;
+        }
+
+        try {
+            await markNoAsiste(numericId, token);
+
+            const mis = await getReservas(token);
+            setMisReservas(mis?.reservas || mis || []);
+
+            if (user?.is_admin) {
+                const all = await getReservasAll(token);
+                setTodasReservas(all?.reservas || all || []);
+            }
+
+            setSuccess(true);
+            setTimeout(() => setSuccess(false), 3000);
+        } catch (e) {
+            const backendMsg =
+                e?.response?.data?.message ||
+                e?.response?.data?.error ||
+                e?.message ||
+                "";
+            setError(backendMsg || "Error al marcar no asistencia");
         }
     };
 
@@ -480,12 +521,20 @@ export default function Reservas() {
                                                             </div>
 
                                                             {estadoNorm === "activa" && (
-                                                                <button
-                                                                    className="btn-cancelo"
-                                                                    onClick={() => handleCancel(idReserva, "admin")}
-                                                                >
-                                                                    ❌ Cancelar
-                                                                </button>
+                                                                <>
+                                                                    <button
+                                                                        className="btn-cancelo"
+                                                                        onClick={() => handleCancel(idReserva, "admin")}
+                                                                    >
+                                                                        ❌ Cancelar
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn-delete"
+                                                                        onClick={() => handleNoAsiste(idReserva, "admin")}
+                                                                    >
+                                                                        🚫 No asistió
+                                                                    </button>
+                                                                </>
                                                             )}
 
                                                             <button

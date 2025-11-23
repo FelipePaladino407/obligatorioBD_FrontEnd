@@ -151,6 +151,10 @@ export async function deleteParticipante(ci, token) {
   return request(`/participante/${ci}`, "DELETE", null, token);
 }
 
+// nuevo: marcar que no hubo asistencia a una reserva
+export async function markNoAsiste(id, token) {
+  return request(`/reserva/${id}/no_asiste`, "PATCH", null, token);
+}
 
 export default {
   getSalas,
@@ -172,4 +176,5 @@ export default {
   updateMyProfile, // nuevo
   createParticipante,
   deleteParticipante,
+  markNoAsiste, // nuevo
 };
