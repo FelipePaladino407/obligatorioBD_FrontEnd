@@ -1,8 +1,18 @@
 import { useAuth } from "../context/AuthContext";
+import { useState } from "react";
+import { updateMiPerfil } from "../services/api"; // nueva función en api.js
 import "./Perfil.css";
 
 export default function Perfil() {
-    const { user } = useAuth();
+    const { user, setUser, token } = useAuth();
+    const [editing, setEditing] = useState(false);
+    const [form, setForm] = useState({
+        nombre: user?.nombre || "",
+        apellido: user?.apellido || "",
+        email: user?.email || "",
+    });
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
 
     if (!user) {
         return (
@@ -15,11 +25,51 @@ export default function Perfil() {
         );
     }
 
-    // Get initials for avatar
     const getInitials = () => {
         const first = user.nombre?.[0] || "";
         const last = user.apellido?.[0] || "";
         return (first + last).toUpperCase();
+    };
+
+    const startEdit = () => {
+        setEditing(true);
+        setForm({
+            nombre: user.nombre || "",
+            apellido: user.apellido || "",
+            email: user.email || "",
+        });
+        setError(null);
+    };
+
+    const cancelEdit = () => {
+        setEditing(false);
+        setForm({
+            nombre: user.nombre || "",
+            apellido: user.apellido || "",
+            email: user.email || "",
+        });
+    };
+
+    const saveEdit = async () => {
+        setSaving(true);
+        setError(null);
+        try {
+            await updateMiPerfil(form, token);
+
+            // actualizar en memoria
+            setUser({
+                ...user,
+                nombre: form.nombre,
+                apellido: form.apellido,
+                email: form.email,
+            });
+
+            setEditing(false);
+        } catch (e) {
+            setError(e.message || "Error al actualizar perfil");
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -29,9 +79,7 @@ export default function Perfil() {
 
                 <div className="perfil-card">
                     <div className="perfil-header">
-                        <div className="perfil-avatar">
-                            {getInitials()}
-                        </div>
+                        <div className="perfil-avatar">{getInitials()}</div>
                         <div className="perfil-header-info">
                             <div className="perfil-name">
                                 {user.nombre} {user.apellido}
@@ -45,45 +93,65 @@ export default function Perfil() {
                     <div className="perfil-info">
                         <div className="info-row">
                             <span className="info-label">Correo Electrónico</span>
-                            <span className="info-value">{user.email}</span>
+                            {editing ? (
+                                <input
+                                    className="info-input"
+                                    value={form.email}
+                                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                                />
+                            ) : (
+                                <span className="info-value">{user.email}</span>
+                            )}
                         </div>
 
                         <div className="info-row">
-                            <span className="info-label">Cédula de Identidad</span>
-                            <span className="info-value">{user.ci}</span>
+                            <span className="info-label">Nombre</span>
+                            {editing ? (
+                                <input
+                                    className="info-input"
+                                    value={form.nombre}
+                                    onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+                                />
+                            ) : (
+                                <span className="info-value">{user.nombre}</span>
+                            )}
                         </div>
 
                         <div className="info-row">
-                            <span className="info-label">Carrera</span>
-                            <span className="info-value">{user.carrera}</span>
-                        </div>
-
-                        <div className="info-row">
-                            <span className="info-label">Facultad</span>
-                            <span className="info-value">{user.facultad}</span>
-                        </div>
-
-                        <div className="info-row">
-                            <span className="info-label">Tipo de Programa</span>
-                            <span className="info-value">{user.tipo_programa}</span>
-                        </div>
-
-                        <div className="info-row">
-                            <span className="info-label">Rol</span>
-                            <span className="info-value">{user.rol}</span>
+                            <span className="info-label">Apellido</span>
+                            {editing ? (
+                                <input
+                                    className="info-input"
+                                    value={form.apellido}
+                                    onChange={(e) => setForm((f) => ({ ...f, apellido: e.target.value }))}
+                                />
+                            ) : (
+                                <span className="info-value">{user.apellido}</span>
+                            )}
                         </div>
                     </div>
 
                     <div className="perfil-actions">
-                        <button className="btn-primary">
-                            Editar Perfil
-                        </button>
-                        {user.is_admin && (
-                            <button className="btn-secondary">
-                                Administrar Usuarios
+                        {!editing ? (
+                            <button className="btn-primary" onClick={startEdit}>
+                                Editar Perfil
                             </button>
+                        ) : (
+                            <>
+                                <button
+                                    className="btn-primary"
+                                    onClick={saveEdit}
+                                    disabled={saving}
+                                >
+                                    {saving ? "Guardando..." : "Guardar"}
+                                </button>
+                                <button className="btn-secondary" onClick={cancelEdit}>
+                                    Cancelar
+                                </button>
+                            </>
                         )}
                     </div>
+                    {error && <div style={{ color: "tomato" }}>{error}</div>}
                 </div>
             </div>
         </div>

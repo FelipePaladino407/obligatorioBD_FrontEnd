@@ -319,9 +319,8 @@ export default function Reservas() {
                                                     </div>
                                                     <div className="reservation-actions">
                                                         <div
-                                                            className={`reservation-status ${
-                                                                estadoNorm === "activa" ? "status-active" : "status-inactive"
-                                                            }`}
+                                                            className={`reservation-status ${estadoNorm === "activa" ? "status-active" : "status-inactive"
+                                                                }`}
                                                         >
                                                             {r.estado}
                                                         </div>
@@ -335,13 +334,16 @@ export default function Reservas() {
                                                             </button>
                                                         )}
 
-                                                        <button
-                                                            className="btn-delete"
-                                                            onClick={() => handleDelete(r.id_reserva, "user")}
-                                                            style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
-                                                        >
-                                                            🗑️ Eliminar
-                                                        </button>
+                                                        {user?.is_admin && (
+                                                            <button
+                                                                className="btn-delete"
+                                                                onClick={() => handleDelete(r.id_reserva, "user")}
+                                                                style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
+                                                            >
+                                                                🗑️ Eliminar
+                                                            </button>
+                                                        )}
+
                                                     </div>
                                                 </div>
                                             </div>
@@ -385,9 +387,8 @@ export default function Reservas() {
                                                         </div>
                                                         <div className="reservation-actions">
                                                             <div
-                                                                className={`reservation-status ${
-                                                                    estadoNorm === "activa" ? "status-active" : "status-inactive"
-                                                                }`}
+                                                                className={`reservation-status ${estadoNorm === "activa" ? "status-active" : "status-inactive"
+                                                                    }`}
                                                             >
                                                                 {r.estado}
                                                             </div>

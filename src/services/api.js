@@ -1,6 +1,7 @@
 const baseUrl = process.env.REACT_APP_API_URL || "http://127.0.0.1:8080/api/v1";
 
 async function request(path, method = "GET", body = null, token = null) {
+  
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -68,9 +69,26 @@ export async function getParticipantes(token) {
 }
 
 export async function updateParticipante(ci, payload, token) {
-  // payload debe venir con { participante: {...}, programa: {...} }
   return request(`/participante/${ci}`, "PATCH", payload, token);
 }
+export async function updateMiPerfil(data, token) {
+    const res = await fetch("http://localhost:5000/participante/me", {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error actualizando perfil");
+    }
+
+    return await res.json();
+}
+
 
 export async function createSala(payload, token) {
   return request("/sala/", "POST", payload, token);
@@ -133,6 +151,8 @@ export async function deleteSancion(ci, fecha_inicio, token) {
   );
 }
 
+
+
 export default {
   getSalas,
   getReservas,
@@ -141,6 +161,7 @@ export default {
   getReportes,
   getParticipantes,
   updateParticipante,
+  updateMiPerfil,
   createSala,
   cancelReserva,
   deleteReserva,
