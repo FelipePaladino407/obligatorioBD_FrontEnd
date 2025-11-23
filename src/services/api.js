@@ -143,6 +143,15 @@ export async function updateMyProfile(payload, token) {
   return request("/participante/me", "PATCH", payload, token);
 }
 
+export async function createParticipante(data, token) {
+  return request("/participante/", "POST", data, token);
+}
+
+export async function deleteParticipante(ci, token) {
+  return request(`/participante/${ci}`, "DELETE", null, token);
+}
+
+
 export default {
   getSalas,
   // nuevo export
@@ -161,4 +170,6 @@ export default {
   getUsuarios,
   deleteSancion,
   updateMyProfile, // nuevo
+  createParticipante,
+  deleteParticipante,
 };
