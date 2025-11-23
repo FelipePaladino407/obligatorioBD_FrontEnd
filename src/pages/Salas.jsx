@@ -3,6 +3,8 @@ import { getSalas, createSala, updateSala } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import "./Salas.css";
 
+const API_BASE = "http://localhost:8080/api/v1";
+
 export default function Salas() {
     const { user } = useAuth();
     const token = localStorage.getItem("token");
@@ -19,7 +21,7 @@ export default function Salas() {
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
 
-    // Editar sala
+    // Editar sala (datos generales)
     const [editingSala, setEditingSala] = useState(null);
     const [editData, setEditData] = useState({
         nombre_sala: "",
@@ -29,6 +31,9 @@ export default function Salas() {
     });
     const [editError, setEditError] = useState(null);
     const [savingEdit, setSavingEdit] = useState(false);
+
+    // Mensaje rápido cuando se cambia el estado manual
+    const [estadoMsg, setEstadoMsg] = useState(null);
 
     useEffect(() => {
         loadSalas();
@@ -123,10 +128,55 @@ export default function Salas() {
         }
     };
 
+    // -------------------------------------------------------
+    // ADMIN: actualizar estado manual de la sala
+    // PATCH /api/v1/sala/estado_manual/<nombre>/<edificio>
+    // Body: { estado: "operativa" | "con_inconvenientes" | "fuera_de_servicio" }
+    // -------------------------------------------------------
+    const actualizarEstadoManualSala = async (sala, nuevoEstado) => {
+        if (!user?.is_admin) return;
+
+        try {
+            setEstadoMsg(null);
+
+            const resp = await fetch(
+                `${API_BASE}/sala/estado_manual/${encodeURIComponent(
+                    sala.nombre_sala
+                )}/${encodeURIComponent(sala.edificio)}`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ estado: nuevoEstado })
+                }
+            );
+
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.error || "Error al actualizar estado manual");
+            }
+
+            setEstadoMsg(
+                `Estado manual de "${sala.nombre_sala}" actualizado a "${nuevoEstado}".`
+            );
+            await loadSalas();
+        } catch (e) {
+            setEstadoMsg(e.message || "Error al actualizar estado manual");
+        }
+    };
+
     return (
         <div className="salas-container">
             <div className="salas-wrapper">
                 <h2 className="salas-title">Gestión de Salas</h2>
+
+                {estadoMsg && (
+                    <div className="info-message" style={{ marginBottom: 12 }}>
+                        {estadoMsg}
+                    </div>
+                )}
 
                 {loading && (
                     <div className="loading-message">
@@ -145,37 +195,102 @@ export default function Salas() {
                             </div>
                         ) : (
                             <div className="salas-grid">
-                                {salas.map((s) => (
-                                    <div key={`${s.nombre_sala}-${s.edificio}`} className="sala-card">
-                                        <div className="sala-name">{s.nombre_sala}</div>
-                                        <div className="sala-edificio">📍 {s.edificio}</div>
-                                        
-                                        <div className="sala-info">
-                                            <span className="sala-info-icon">👥</span>
-                                            <span>Capacidad: {s.capacidad} personas</span>
-                                        </div>
-                                        
-                                        <div className="sala-info">
-                                            <span className="sala-info-icon">🏷️</span>
-                                            <span>Tipo: {s.tipo_sala}</span>
-                                        </div>
+                                {salas.map((s) => {
+                                    const estadoCalculado = s.estado_calculado || "–";
+                                    const estadoManual = s.estado_manual || "sin definir";
+                                    const estadoFinal =
+                                        s.estado || s.estado_manual || s.estado_calculado || "sin datos";
 
-                                        {(s.estado || s.estado_calculado) && (
-                                            <span className={`sala-estado ${s.estado === 'disponible' || s.estado_calculado === 'disponible' ? 'disponible' : 'ocupada'}`}>
-                                                {s.estado || s.estado_calculado}
-                                            </span>
-                                        )}
+                                    const esOperativa =
+                                        estadoFinal === "operativa" || estadoFinal === "disponible";
 
-                                        {user?.is_admin && (
-                                            <button
-                                                className="btn-edit-sala"
-                                                onClick={() => startEditing(s)}
+                                    return (
+                                        <div
+                                            key={`${s.nombre_sala}-${s.edificio}`}
+                                            className="sala-card"
+                                        >
+                                            <div className="sala-name">{s.nombre_sala}</div>
+                                            <div className="sala-edificio">📍 {s.edificio}</div>
+
+                                            <div className="sala-info">
+                                                <span className="sala-info-icon">👥</span>
+                                                <span>Capacidad: {s.capacidad} personas</span>
+                                            </div>
+
+                                            <div className="sala-info">
+                                                <span className="sala-info-icon">🏷️</span>
+                                                <span>Tipo: {s.tipo_sala}</span>
+                                            </div>
+
+                                            {/* ESTADO FINAL */}
+                                            <span
+                                                className={`sala-estado ${
+                                                    esOperativa ? "disponible" : "ocupada"
+                                                }`}
                                             >
-                                                ✏️ Editar
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
+                                                Estado actual: {estadoFinal}
+                                            </span>
+
+                                            {/* ESTADO CALCULADO / MANUAL SOLO VISUAL */}
+                                            <div className="sala-info">
+                                                <span className="sala-info-icon">🧮</span>
+                                                <span>Estado calculado: {estadoCalculado}</span>
+                                            </div>
+
+                                            <div className="sala-info">
+                                                <span className="sala-info-icon">✋</span>
+                                                <span>Estado manual: {estadoManual}</span>
+                                            </div>
+
+                                            {/* Selector solo para ADMIN */}
+                                            {user?.is_admin && (
+                                                <div
+                                                    className="sala-info"
+                                                    style={{
+                                                        flexDirection: "column",
+                                                        alignItems: "flex-start"
+                                                    }}
+                                                >
+                                                    <span className="sala-info-icon">🛠️</span>
+                                                    <div style={{ fontSize: 13 }}>
+                                                        Ajustar estado manual:
+                                                    </div>
+                                                    <select
+                                                        className="form-select"
+                                                        style={{ marginTop: 4, width: "100%" }}
+                                                        value={s.estado_manual || ""}
+                                                        onChange={(e) =>
+                                                            actualizarEstadoManualSala(
+                                                                s,
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                    >
+                                                        <option value="" disabled>
+                                                            Seleccionar estado...
+                                                        </option>
+                                                        <option value="operativa">operativa</option>
+                                                        <option value="con_inconvenientes">
+                                                            con_inconvenientes
+                                                        </option>
+                                                        <option value="fuera_de_servicio">
+                                                            fuera_de_servicio
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                            )}
+
+                                            {user?.is_admin && (
+                                                <button
+                                                    className="btn-edit-sala"
+                                                    onClick={() => startEditing(s)}
+                                                >
+                                                    ✏️ Editar datos de sala
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </>
