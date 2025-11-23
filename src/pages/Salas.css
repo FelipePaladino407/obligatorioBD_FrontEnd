@@ -1,0 +1,299 @@
+/* Salas.css */
+
+.salas-container {
+    min-height: 100vh;
+    background: #f8f9fa;
+    padding: 40px 20px;
+}
+
+.salas-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.salas-title {
+    color: #183c8b;
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 32px;
+    letter-spacing: -0.5px;
+}
+
+/* Loading & Error */
+.loading-message {
+    background: white;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
+}
+
+.error-message {
+    background: #fef2f2;
+    color: #991b1b;
+    padding: 12px 16px;
+    border-radius: 4px;
+    border-left: 4px solid #dc2626;
+    margin-bottom: 24px;
+}
+
+/* Salas Grid */
+.salas-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    margin-bottom: 40px;
+}
+
+.sala-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s;
+}
+
+.sala-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.sala-name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #183c8b;
+    margin-bottom: 4px;
+}
+
+.sala-edificio {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.sala-info {
+    font-size: 0.9rem;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sala-info-icon {
+    color: #2596be;
+}
+
+.sala-estado {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.sala-estado.disponible {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.sala-estado.ocupada {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.btn-edit-sala {
+    margin-top: 12px;
+    padding: 8px 14px;
+    border-radius: 4px;
+    background: white;
+    color: #183c8b;
+    border: 1px solid #183c8b;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-edit-sala:hover {
+    background: #f0f9ff;
+}
+
+.empty-salas {
+    background: white;
+    border-radius: 8px;
+    padding: 60px 40px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    color: #9ca3af;
+}
+
+.empty-salas-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* Form Sections */
+.form-section {
+    background: white;
+    border-radius: 8px;
+    padding: 32px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    max-width: 600px;
+    margin-bottom: 24px;
+}
+
+.form-section-title {
+    color: #183c8b;
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #183c8b;
+}
+
+.sala-form {
+    display: grid;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-label {
+    color: #374151;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    font-size: 1rem;
+    transition: all 0.2s;
+    outline: none;
+    font-family: inherit;
+}
+
+.form-select {
+    cursor: pointer;
+}
+
+.form-input:focus,
+.form-select:focus {
+    border-color: #2596be;
+    box-shadow: 0 0 0 3px rgba(37, 150, 190, 0.1);
+}
+
+.form-input::placeholder {
+    color: #9ca3af;
+}
+
+.form-error {
+    background: #fef2f2;
+    color: #991b1b;
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    border-left: 4px solid #dc2626;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.btn-submit {
+    flex: 1;
+    background: #183c8b;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-submit:hover {
+    background: #2596be;
+}
+
+.btn-submit:active {
+    background: #1a7a9e;
+}
+
+.btn-submit:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.btn-cancel {
+    flex: 1;
+    background: white;
+    color: #6b7280;
+    padding: 12px 24px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+/* Edit Section Highlight */
+.form-section.editing {
+    border: 2px solid #2596be;
+    box-shadow: 0 4px 16px rgba(37, 150, 190, 0.15);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .salas-container {
+        padding: 20px 16px;
+    }
+
+    .salas-title {
+        font-size: 1.5rem;
+    }
+
+    .salas-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-section {
+        padding: 24px 20px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .sala-card {
+        padding: 16px;
+    }
+}

@@ -121,11 +121,17 @@ export async function getUsuarios(token) {
   return request("/usuarios/", "GET", null, token);
 }
 
-export async function deleteSancion(ci_participante, token) {
-  return request(`/sancion/${ci_participante}`, "DELETE", null, token);
+export async function deleteSancion(ci, fecha_inicio, token) {
+  const ciStr = String(ci);
+  const fiStr = String(fecha_inicio); // debe venir ya como "YYYY-MM-DD"
+  // nuevo endpoint: DELETE /sancion/<ci> con body JSON { fecha_inicio }
+  return request(
+    `/sancion/${encodeURIComponent(ciStr)}`,
+    "DELETE",
+    { fecha_inicio: fiStr },
+    token
+  );
 }
-
-
 
 export default {
   getSalas,

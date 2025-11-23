@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getParticipantes, getSanciones, createSancion, deleteSancion } from "../services/api";
+import "./Sanciones.css";
 
 export default function Sanciones() {
   const { user } = useAuth();
@@ -93,9 +94,10 @@ export default function Sanciones() {
         fecha_fin
       }, token);
 
-      setCreateOk("Sanción creada");
+      setCreateOk("Sanción creada exitosamente");
       setForm({ ci_participante: "", motivo: "", fecha_inicio: "", fecha_fin: "" });
       fetchSanciones();
+      setTimeout(() => setCreateOk(null), 3000);
     } catch (e) {
       setCreateError(e.message || "Error creando sanción");
     } finally {
@@ -103,12 +105,29 @@ export default function Sanciones() {
     }
   };
 
-  const onDelete = async (ci) => {
-    if (!window.confirm("¿Seguro querés eliminar esta sanción?")) return;
+  const toYMD = (raw) => {
+    // si ya viene como 'YYYY-MM-DD', devolverlo tal cual
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) return String(raw);
+
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return String(raw); // fallback: lo mandamos como viene
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const onDelete = async (sancion) => {
+    if (!window.confirm("¿Seguro que desea eliminar esta sanción?")) return;
 
     try {
       const token = localStorage.getItem("token");
-      await deleteSancion(ci, token);
+      const ee = new Date(sancion.fecha_inicio);
+      ee.setDate(ee.getDate() + 1);
+      const fechaInicioYMD = toYMD(ee);
+      // usa el nuevo endpoint /sancion/<ci>/<fecha_inicio>
+      await deleteSancion(sancion.ci_participante, fechaInicioYMD, token);
       fetchSanciones();
     } catch (e) {
       alert(e.message || "Error eliminando sanción");
@@ -116,88 +135,124 @@ export default function Sanciones() {
   };
 
   return (
-    <div style={{ maxWidth: 900 }}>
-      <h2>Sanciones</h2>
-      {user?.is_admin && <p style={{ color: "#0a7" }}>Vista administrador</p>}
-
-      <button onClick={fetchSanciones} disabled={loading}>
-        {loading ? "Actualizando..." : "Refrescar"}
-      </button>
-
-      {loadError && <div style={{ color: "#900" }}>{loadError}</div>}
-
-      {!loading && sanciones.length === 0 && <p>No hay sanciones registradas.</p>}
-
-      {sanciones.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
-          <thead>
-            <tr>
-              {user?.is_admin && <th>CI</th>}
-              <th>Motivo</th>
-              <th>Inicio</th>
-              <th>Fin</th>
-              {user?.is_admin && <th>Acciones</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {sanciones.map((s, i) => (
-              <tr key={i} style={{ background: i % 2 ? "#fafafa" : "#fff" }}>
-                {user?.is_admin && <td>{s.ci_participante}</td>}
-                <td>{s.motivo}</td>
-                <td>{formatFecha(s.fecha_inicio)}</td>
-                <td>{formatFecha(s.fecha_fin)}</td>
-                {user?.is_admin && (
-                  <td>
-                    <button
-                      onClick={() => onDelete(s.ci_participante)}
-                      style={{ background: "#a00", color: "#fff", border: "none", borderRadius: 4, padding: "4px 8px", cursor: "pointer" }}
-                    >
-                      Eliminar
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {user?.is_admin && (
-        <div style={{ border: "1px solid #ddd", padding: 16, marginTop: 20 }}>
-          <h3>Crear sanción</h3>
-          <form onSubmit={onCreate} style={{ display: "grid", gap: 12 }}>
-            <input
-              name="ci_participante"
-              placeholder="CI participante"
-              value={form.ci_participante}
-              onChange={onChange}
-            />
-            <textarea
-              name="motivo"
-              placeholder="Motivo"
-              value={form.motivo}
-              onChange={onChange}
-            />
-            <input
-              type="date"
-              name="fecha_inicio"
-              value={form.fecha_inicio}
-              onChange={onChange}
-            />
-            <input
-              type="date"
-              name="fecha_fin"
-              value={form.fecha_fin}
-              onChange={onChange}
-            />
-            <button type="submit" disabled={creating}>
-              {creating ? "Creando..." : "Crear sanción"}
-            </button>
-            {createError && <div style={{ color: "#a00" }}>{createError}</div>}
-            {createOk && <div style={{ color: "#0a7" }}>{createOk}</div>}
-          </form>
+    <div className="sanciones-container">
+      <div className="sanciones-wrapper">
+        <div className="sanciones-header">
+          <h2 className="sanciones-title">Sanciones</h2>
+          {user?.is_admin && (
+            <span className="admin-badge">Vista Administrador</span>
+          )}
         </div>
-      )}
+
+        <div className="sanciones-actions">
+          <button onClick={fetchSanciones} disabled={loading} className="btn-refresh">
+            {loading ? "Actualizando..." : "Refrescar"}
+          </button>
+        </div>
+
+        {loadError && <div className="error-message">{loadError}</div>}
+
+        {!loading && sanciones.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-state-icon">⚠️</div>
+            <p>No hay sanciones registradas.</p>
+          </div>
+        )}
+
+        {sanciones.length > 0 && (
+          <div className="sanciones-table-wrapper">
+            <table className="sanciones-table">
+              <thead>
+                <tr>
+                  {user?.is_admin && <th>CI</th>}
+                  <th>Motivo</th>
+                  <th>Fecha Inicio</th>
+                  <th>Fecha Fin</th>
+                  {user?.is_admin && <th>Acciones</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {sanciones.map((s, i) => (
+                  <tr key={i}>
+                    {user?.is_admin && <td>{s.ci_participante}</td>}
+                    <td>{s.motivo}</td>
+                    <td>{formatFecha(s.fecha_inicio)}</td>
+                    <td>{formatFecha(s.fecha_fin)}</td>
+                    {user?.is_admin && (
+                      <td>
+                        <button
+                          onClick={() => onDelete(s)}
+                          className="btn-delete"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {user?.is_admin && (
+          <div className="create-section">
+            <h3 className="create-section-title">Crear Nueva Sanción</h3>
+            <div className="create-form">
+              <div className="form-group">
+                <label className="form-label">CI del Participante</label>
+                <input
+                  name="ci_participante"
+                  placeholder="Ingrese la cédula de identidad"
+                  value={form.ci_participante}
+                  onChange={onChange}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Motivo</label>
+                <textarea
+                  name="motivo"
+                  placeholder="Describa el motivo de la sanción"
+                  value={form.motivo}
+                  onChange={onChange}
+                  className="form-textarea"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fecha de Inicio</label>
+                <input
+                  type="date"
+                  name="fecha_inicio"
+                  value={form.fecha_inicio}
+                  onChange={onChange}
+                  className="form-date"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fecha de Fin</label>
+                <input
+                  type="date"
+                  name="fecha_fin"
+                  value={form.fecha_fin}
+                  onChange={onChange}
+                  className="form-date"
+                />
+              </div>
+
+              <button onClick={onCreate} disabled={creating} className="btn-submit">
+                {creating ? "Creando..." : "Crear Sanción"}
+              </button>
+
+              {createError && <div className="error-message">{createError}</div>}
+              {createOk && <div className="success-message">✓ {createOk}</div>}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

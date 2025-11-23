@@ -140,11 +140,19 @@ export default function Reservas() {
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (id, source = "user") => {
         setError(null);
         setSuccess(false);
+
+        const numericId = Number(id);
+        if (!Number.isInteger(numericId) || numericId <= 0) {
+            console.error("handleDelete: id inválido", { id, source });
+            setError("No se pudo eliminar: identificador de reserva inválido");
+            return;
+        }
+
         try {
-            await deleteReserva(id, token);
+            await deleteReserva(numericId, token);
 
             const mis = await getReservas(token);
             setMisReservas(mis?.reservas || mis || []);
@@ -162,16 +170,24 @@ export default function Reservas() {
                 e?.response?.data?.error ||
                 e?.message ||
                 "";
+            console.error("Error en deleteReserva", { id: numericId, source, error: e, backendMsg });
             setError(backendMsg || "Error al eliminar reserva");
-            console.error(e);
         }
     };
 
-    const handleCancel = async (id) => {
+    const handleCancel = async (id, source = "user") => {
         setError(null);
         setSuccess(false);
+
+        const numericId = Number(id);
+        if (!Number.isInteger(numericId) || numericId <= 0) {
+            console.error("handleCancel: id inválido", { id, source });
+            setError("No se pudo cancelar: identificador de reserva inválido");
+            return;
+        }
+
         try {
-            await cancelReserva(id, token);
+            await cancelReserva(numericId, token);
 
             const mis = await getReservas(token);
             setMisReservas(mis?.reservas || mis || []);
@@ -189,8 +205,8 @@ export default function Reservas() {
                 e?.response?.data?.error ||
                 e?.message ||
                 "";
+            console.error("Error en cancelReserva", { id: numericId, source, error: e, backendMsg });
             setError(backendMsg || "Error al cancelar reserva");
-            console.error(e);
         }
     };
 
@@ -313,7 +329,7 @@ export default function Reservas() {
                                                         {estadoNorm === "activa" && (
                                                             <button
                                                                 className="btn-cancel"
-                                                                onClick={() => handleCancel(r.id_reserva)}
+                                                                onClick={() => handleCancel(r.id_reserva, "user")}
                                                             >
                                                                 ❌ Cancelar
                                                             </button>
@@ -321,7 +337,7 @@ export default function Reservas() {
 
                                                         <button
                                                             className="btn-delete"
-                                                            onClick={() => handleDelete(r.id_reserva)}
+                                                            onClick={() => handleDelete(r.id_reserva, "user")}
                                                             style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
                                                         >
                                                             🗑️ Eliminar
@@ -351,8 +367,10 @@ export default function Reservas() {
                                     <div className="reservations-list">
                                         {todasReservas.map((r) => {
                                             const estadoNorm = String(r.estado || "").toLowerCase().trim();
+                                            const idReserva = r.id_reserva ?? r.id; // usar el mismo id que el backend espera
+                                            console.debug("Reserva admin render", { r, idReserva });
                                             return (
-                                                <div key={`all-${r.id_reserva}`} className="reservation-item">
+                                                <div key={idReserva} className="reservation-item">
                                                     <div className="reservation-content">
                                                         <div className="reservation-info">
                                                             <div className="reservation-name">
@@ -377,7 +395,7 @@ export default function Reservas() {
                                                             {estadoNorm === "activa" && (
                                                                 <button
                                                                     className="btn-cancel"
-                                                                    onClick={() => handleCancel(r.id_reserva)}
+                                                                    onClick={() => handleCancel(idReserva, "admin")}
                                                                 >
                                                                     ❌ Cancelar
                                                                 </button>
@@ -385,7 +403,7 @@ export default function Reservas() {
 
                                                             <button
                                                                 className="btn-delete"
-                                                                onClick={() => handleDelete(r.id_reserva)}
+                                                                onClick={() => handleDelete(idReserva, "admin")}
                                                                 style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
                                                             >
                                                                 🗑️ Eliminar
