@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSalas, createSala, updateSala } from "../services/api";
+import { getSalas, createSala, updateSala, getSalasEstado } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import "./Salas.css";
 
@@ -38,8 +38,36 @@ export default function Salas() {
         setLoading(true);
         setError(null);
         try {
-            const data = await getSalas(token);
-            setSalas(Array.isArray(data) ? data : []);
+            // cargar salas y sus estados en paralelo
+            const [salasData, estadosData] = await Promise.all([
+                getSalas(token),
+                getSalasEstado(token),
+            ]);
+
+            const baseSalas = Array.isArray(salasData) ? salasData : [];
+            const estados = Array.isArray(estadosData) ? estadosData : [];
+
+            // mapear estados por clave nombre+edificio
+            const estadosByKey = estados.reduce((acc, e) => {
+                const key = `${e.nombre_sala}-${e.edificio}`;
+                acc[key] = e;
+                return acc;
+            }, {});
+
+            // fusionar la info de estado en cada sala
+            const merged = baseSalas.map((s) => {
+                const key = `${s.nombre_sala}-${s.edificio}`;
+                const est = estadosByKey[key];
+                return est
+                    ? {
+                          ...s,
+                          estado_calculado: est.estado_calculado,
+                          estado_manual: est.estado_manual,
+                      }
+                    : s;
+            });
+
+            setSalas(merged);
         } catch (e) {
             setError(e.message || "Error al cargar salas");
         } finally {
@@ -160,9 +188,9 @@ export default function Salas() {
                                             <span>Tipo: {s.tipo_sala}</span>
                                         </div>
 
-                                        {(s.estado || s.estado_calculado) && (
-                                            <span className={`sala-estado ${s.estado === 'disponible' || s.estado_calculado === 'disponible' ? 'disponible' : 'ocupada'}`}>
-                                                {s.estado || s.estado_calculado}
+                                        {(s.estado_calculado) && (
+                                            <span className={`sala-estado ${s.estado_calculado === 'operativa' ? 'disponible' : 'ocupada'}`}>
+                                                {s.estado_calculado}
                                             </span>
                                         )}
 

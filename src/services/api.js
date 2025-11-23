@@ -1,7 +1,6 @@
 const baseUrl = process.env.REACT_APP_API_URL || "http://127.0.0.1:8080/api/v1";
 
 async function request(path, method = "GET", body = null, token = null) {
-  
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -35,6 +34,10 @@ export async function getSalas(token) {
   return request("/sala/", "GET", null, token);
 }
 
+// nuevo: obtener estados calculados de todas las salas
+export async function getSalasEstado(token) {
+  return request("/sala/estado", "GET", null, token);
+}
 
 export async function updateSala(payload, token, edificio, sala) {
   return request(`/sala/${edificio}/${sala}`, "PATCH", payload, token);
@@ -69,26 +72,9 @@ export async function getParticipantes(token) {
 }
 
 export async function updateParticipante(ci, payload, token) {
+  // payload debe venir con { participante: {...}, programa: {...} }
   return request(`/participante/${ci}`, "PATCH", payload, token);
 }
-export async function updateMiPerfil(data, token) {
-    const res = await fetch("http://localhost:5000/participante/me", {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-    });
-
-    if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Error actualizando perfil");
-    }
-
-    return await res.json();
-}
-
 
 export async function createSala(payload, token) {
   return request("/sala/", "POST", payload, token);
@@ -151,17 +137,22 @@ export async function deleteSancion(ci, fecha_inicio, token) {
   );
 }
 
-
+// nuevo: actualizar datos del participante logueado
+export async function updateMyProfile(payload, token) {
+  // payload puede incluir: { nombre?, apellido?, email? }
+  return request("/participante/me", "PATCH", payload, token);
+}
 
 export default {
   getSalas,
+  // nuevo export
+  getSalasEstado,
   getReservas,
   createReserva,
   logout,
   getReportes,
   getParticipantes,
   updateParticipante,
-  updateMiPerfil,
   createSala,
   cancelReserva,
   deleteReserva,
@@ -169,4 +160,5 @@ export default {
   createSancion,
   getUsuarios,
   deleteSancion,
+  updateMyProfile, // nuevo
 };

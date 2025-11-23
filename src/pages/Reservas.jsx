@@ -7,6 +7,31 @@ import "./Reservas.css";
 export default function Reservas() {
     const { user } = useAuth();
 
+    // mapa de turnos a horarios
+    const TURNOS = [
+    { id: 1, label: "08:00 - 09:00" },
+    { id: 2, label: "09:00 - 10:00" },
+    { id: 3, label: "10:00 - 11:00" },
+    { id: 4, label: "11:00 - 12:00" },
+    { id: 5, label: "12:00 - 13:00" },
+    { id: 6, label: "13:00 - 14:00" },
+    { id: 7, label: "14:00 - 15:00" },
+    { id: 8, label: "15:00 - 16:00" },
+    { id: 9, label: "16:00 - 17:00" },
+    { id: 10, label: "17:00 - 18:00" },
+    { id: 11, label: "18:00 - 19:00" },
+    { id: 12, label: "19:00 - 20:00" },
+    { id: 13, label: "20:00 - 21:00" },
+    { id: 14, label: "21:00 - 22:00" },
+    { id: 15, label: "22:00 - 23:00" },
+];
+
+    // helper para mostrar el horario del turno
+    const getTurnoLabel = (idTurno) => {
+        const t = TURNOS.find((x) => x.id === Number(idTurno));
+        return t ? t.label : `Turno ${idTurno}`;
+    };
+
     const [misReservas, setMisReservas] = useState([]);      // antes: reservas
     const [todasReservas, setTodasReservas] = useState([]);  // solo para admin
     const [salas, setSalas] = useState([]);
@@ -17,6 +42,8 @@ export default function Reservas() {
     const [selectedSala, setSelectedSala] = useState("");
     const [fecha, setFecha] = useState("");
     const [turno, setTurno] = useState(1);
+    const [hasTurnoExtra, setHasTurnoExtra] = useState(false);   // nuevo
+    const [turnoExtra, setTurnoExtra] = useState(2);             // nuevo
     const [participantes, setParticipantes] = useState("");
 
     const navigate = useNavigate();
@@ -61,7 +88,6 @@ export default function Reservas() {
     }, [token, navigate, user?.is_admin]);
 
     const handleCreate = async () => {
-        // ...existing validations...
         setError(null);
         setSuccess(false);
 
@@ -90,17 +116,30 @@ export default function Reservas() {
             participantes_ci.push(userCi);
         }
 
-        const payload = {
+        const payloadBase = {
             participantes_ci,
             nombre_sala,
             edificio,
             fecha,
-            id_turno: Number(turno),
             estado: "ACTIVA",
         };
 
+        // construir lista de turnos a reservar
+        const turnosAReservar = [Number(turno)];
+        if (hasTurnoExtra) {
+            const extraId = Number(turnoExtra);
+            // opcional: evitar duplicar turno
+            if (!turnosAReservar.includes(extraId)) {
+                turnosAReservar.push(extraId);
+            }
+        }
+
         try {
-            await createReserva(payload, token);
+            // crear una reserva por cada turno
+            for (const idTurno of turnosAReservar) {
+                const payload = { ...payloadBase, id_turno: idTurno };
+                await createReserva(payload, token);
+            }
 
             // refrescar mis reservas
             const mis = await getReservas(token);
@@ -115,6 +154,8 @@ export default function Reservas() {
             setSelectedSala("");
             setFecha("");
             setTurno(1);
+            setHasTurnoExtra(false);
+            setTurnoExtra(2);
             setParticipantes("");
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
@@ -262,14 +303,70 @@ export default function Reservas() {
 
                                 <label className="form-label">
                                     <span className="form-label-text">Turno</span>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={turno}
-                                        onChange={(e) => setTurno(Number(e.target.value))}
-                                        className="form-input"
-                                    />
+                                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                        <select
+                                            value={turno}
+                                            onChange={(e) => setTurno(Number(e.target.value))}
+                                            className="form-select"
+                                        >
+                                            <option value="">-- Seleccione un turno --</option>
+                                            {TURNOS.map((t) => (
+                                                <option key={t.id} value={t.id}>
+                                                    {t.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {!hasTurnoExtra && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setHasTurnoExtra(true)}
+                                                style={{
+                                                    padding: "4px 8px",
+                                                    borderRadius: "4px",
+                                                    border: "1px solid #ccc",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                +
+                                            </button>
+                                        )}
+                                    </div>
                                 </label>
+
+                                {hasTurnoExtra && (
+                                    <label className="form-label">
+                                        <span className="form-label-text">Turno adicional</span>
+                                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                            <select
+                                                value={turnoExtra}
+                                                onChange={(e) => setTurnoExtra(Number(e.target.value))}
+                                                className="form-select"
+                                            >
+                                                <option value="">-- Seleccione un turno --</option>
+                                                {TURNOS.map((t) => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setHasTurnoExtra(false);
+                                                    setTurnoExtra(2);
+                                                }}
+                                                style={{
+                                                    padding: "4px 8px",
+                                                    borderRadius: "4px",
+                                                    border: "1px solid #ccc",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    </label>
+                                )}
 
                                 <label className="form-label">
                                     <span className="form-label-text">Participantes (CI separados por coma)</span>
@@ -315,35 +412,28 @@ export default function Reservas() {
                                                         <div className="reservation-name">{r.nombre_sala}</div>
                                                         <div className="reservation-details">
                                                             📅 {r.fecha} • 🏢 {r.edificio}
+                                                            {r.id_turno && (
+                                                                <> • ⏰ {getTurnoLabel(r.id_turno)}</>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="reservation-actions">
                                                         <div
-                                                            className={`reservation-status ${estadoNorm === "activa" ? "status-active" : "status-inactive"
-                                                                }`}
+                                                            className={`reservation-status ${
+                                                                estadoNorm === "activa" ? "status-active" : "status-inactive"
+                                                            }`}
                                                         >
                                                             {r.estado}
                                                         </div>
 
                                                         {estadoNorm === "activa" && (
                                                             <button
-                                                                className="btn-cancel"
+                                                                className="btn-cancelo"
                                                                 onClick={() => handleCancel(r.id_reserva, "user")}
                                                             >
                                                                 ❌ Cancelar
                                                             </button>
                                                         )}
-
-                                                        {user?.is_admin && (
-                                                            <button
-                                                                className="btn-delete"
-                                                                onClick={() => handleDelete(r.id_reserva, "user")}
-                                                                style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
-                                                            >
-                                                                🗑️ Eliminar
-                                                            </button>
-                                                        )}
-
                                                     </div>
                                                 </div>
                                             </div>
@@ -380,6 +470,9 @@ export default function Reservas() {
                                                             </div>
                                                             <div className="reservation-details">
                                                                 📅 {r.fecha}
+                                                                {r.id_turno && (
+                                                                    <> • ⏰ {getTurnoLabel(r.id_turno)}</>
+                                                                )}
                                                                 {r.participantes && r.participantes.length > 0 && (
                                                                     <> • 👥 {r.participantes.join(", ")}</>
                                                                 )}
@@ -387,15 +480,16 @@ export default function Reservas() {
                                                         </div>
                                                         <div className="reservation-actions">
                                                             <div
-                                                                className={`reservation-status ${estadoNorm === "activa" ? "status-active" : "status-inactive"
-                                                                    }`}
+                                                                className={`reservation-status ${
+                                                                    estadoNorm === "activa" ? "status-active" : "status-inactive"
+                                                                }`}
                                                             >
                                                                 {r.estado}
                                                             </div>
 
                                                             {estadoNorm === "activa" && (
                                                                 <button
-                                                                    className="btn-cancel"
+                                                                    className="btn-cancelo"
                                                                     onClick={() => handleCancel(idReserva, "admin")}
                                                                 >
                                                                     ❌ Cancelar
@@ -405,7 +499,6 @@ export default function Reservas() {
                                                             <button
                                                                 className="btn-delete"
                                                                 onClick={() => handleDelete(idReserva, "admin")}
-                                                                style={{ marginLeft: "8px", backgroundColor: "red", color: "white" }}
                                                             >
                                                                 🗑️ Eliminar
                                                             </button>

@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
-import { updateMiPerfil } from "../services/api"; // nueva función en api.js
+import { updateMyProfile } from "../services/api"; // nueva función en api.js
 import "./Perfil.css";
 
 export default function Perfil() {
@@ -54,7 +54,7 @@ export default function Perfil() {
         setSaving(true);
         setError(null);
         try {
-            await updateMiPerfil(form, token);
+            await updateMyProfile(form, token);
 
             // actualizar en memoria
             setUser({

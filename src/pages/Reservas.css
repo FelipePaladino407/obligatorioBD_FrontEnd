@@ -150,12 +150,45 @@
     transition: all 0.2s;
 }
 
+
+
 .btn-submit:hover {
     background: #2596be;
 }
 
 .btn-submit:active {
     background: #1a7a9e;
+}
+
+.btn-cancelo,
+.btn-delete {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    white-space: nowrap;
+}
+
+.btn-cancelo {
+    background: white;
+    color: #dc2626;
+}
+
+.btn-cancelo:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.btn-delete {
+    background: #dc2626;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #b91c1c;
 }
 
 /* Alert Messages */
