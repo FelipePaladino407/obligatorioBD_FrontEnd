@@ -5,10 +5,8 @@ import {
   createParticipante,
   deleteParticipante,
 } from "../services/api";
-import { useAuth } from "../context/AuthContext";
 
 export default function Usuarios() {
-  const { user } = useAuth();
   const token = localStorage.getItem("token");
 
   const ROLES = ["estudiante_grado", "estudiante_posgrado", "docente"];
@@ -35,20 +33,21 @@ export default function Usuarios() {
     rol: "",
   });
 
-  // creación (SIN PROGRAMA NI ROL)
+  // creación con rol y programa
   const [newUser, setNewUser] = useState({
     ci: "",
     nombre: "",
     apellido: "",
     email: "",
     password: "",
+    rol: "",
+    nombre_programa: "",
   });
 
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user?.is_admin) return;
     const load = async () => {
       setLoading(true);
       setError(null);
@@ -62,17 +61,14 @@ export default function Usuarios() {
       }
     };
     load();
-  }, [token, user]);
-
-  if (!user?.is_admin) return <div>No autorizado</div>;
+  }, [token]);
 
   // filtrar
   const filtered = rows.filter((r) => {
     if (!filter) return true;
     const term = filter.toLowerCase();
     return [
-      r.ci, r.nombre, r.apellido, r.email, r.rol,
-      r.facultad, r.carrera, r.tipo, r.nombre_programa,
+      r.ci, r.nombre, r.apellido, r.email, r.rol, r.nombre_programa,
     ]
       .filter(Boolean)
       .some((x) => String(x).toLowerCase().includes(term));
@@ -135,7 +131,7 @@ export default function Usuarios() {
     }
   };
 
-  // crear SIN PROGRAMA NI ROL
+  // crear con rol y programa
   const create = async () => {
     setError(null);
 
@@ -144,7 +140,9 @@ export default function Usuarios() {
       !newUser.nombre ||
       !newUser.apellido ||
       !newUser.email ||
-      !newUser.password
+      !newUser.password ||
+      !newUser.rol ||
+      !newUser.nombre_programa
     ) {
       setError("Faltan campos por completar.");
       return;
@@ -164,13 +162,13 @@ export default function Usuarios() {
         apellido: newUser.apellido,
         email: newUser.email,
         password: newUser.password,
-        nombre_programa: null,
-        rol: null,
+        rol: newUser.rol,
+        nombre_programa: newUser.nombre_programa,
       };
 
       await createParticipante(payload, token);
 
-      // recargar lista para evitar F5
+      // recargar lista
       const updated = await getParticipantes(token);
       setRows(updated);
 
@@ -181,6 +179,8 @@ export default function Usuarios() {
         apellido: "",
         email: "",
         password: "",
+        rol: "",
+        nombre_programa: "",
       });
     } catch (e) {
       setError(e.message || "Error creando participante");
@@ -269,6 +269,24 @@ export default function Usuarios() {
             style={inputStyle}
           />
 
+          <select
+            value={newUser.rol}
+            onChange={(e) => setNewUser((d) => ({ ...d, rol: e.target.value }))}
+            style={inputStyle}
+          >
+            <option value="">Seleccionar rol...</option>
+            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+
+          <select
+            value={newUser.nombre_programa}
+            onChange={(e) => setNewUser((d) => ({ ...d, nombre_programa: e.target.value }))}
+            style={inputStyle}
+          >
+            <option value="">Seleccionar programa...</option>
+            {PROGRAMAS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+
           <button onClick={create} disabled={saving}>
             {saving ? "Guardando..." : "Crear"}
           </button>
@@ -294,7 +312,6 @@ export default function Usuarios() {
                 <tr key={r.ci} style={{ background: idx % 2 ? "#121212" : "#181818" }}>
                   <td style={tdStyle}>{r.ci}</td>
 
-                  {/* CAMPOS EDITABLES */}
                   {["nombre", "apellido", "email", "rol", "nombre_programa"].map(
                     (field) => (
                       <td key={field} style={tdStyle}>
@@ -343,7 +360,6 @@ export default function Usuarios() {
 
                   <td style={tdStyle}>{r.tipo}</td>
 
-                  {/* ACCIONES */}
                   <td style={tdStyle}>
                     {editingCi === r.ci ? (
                       <>
@@ -380,15 +396,7 @@ export default function Usuarios() {
   );
 }
 
-const HEADER = [
-  "CI",
-  "Nombre",
-  "Apellido",
-  "Email",
-  "Rol",
-  "Programa",
-  "Tipo",
-];
+const HEADER = ["CI","Nombre","Apellido","Email","Rol","Programa","Tipo"];
 
 const thStyle = {
   textAlign: "left",
