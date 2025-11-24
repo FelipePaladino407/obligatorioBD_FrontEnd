@@ -5,6 +5,7 @@ import {
   createParticipante,
   deleteParticipante,
 } from "../services/api";
+import "./Usuarios.css";
 
 export default function Usuarios() {
   const token = localStorage.getItem("token");
@@ -23,7 +24,6 @@ export default function Usuarios() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("");
 
-  // edición
   const [editingCi, setEditingCi] = useState(null);
   const [editingData, setEditingData] = useState({
     nombre: "",
@@ -33,7 +33,6 @@ export default function Usuarios() {
     rol: "",
   });
 
-  // creación con rol y programa
   const [newUser, setNewUser] = useState({
     ci: "",
     nombre: "",
@@ -63,7 +62,6 @@ export default function Usuarios() {
     load();
   }, [token]);
 
-  // filtrar
   const filtered = rows.filter((r) => {
     if (!filter) return true;
     const term = filter.toLowerCase();
@@ -74,7 +72,6 @@ export default function Usuarios() {
       .some((x) => String(x).toLowerCase().includes(term));
   });
 
-  // editar
   const startEdit = (r) => {
     setEditingCi(r.ci);
     setEditingData({
@@ -131,7 +128,6 @@ export default function Usuarios() {
     }
   };
 
-  // crear con rol y programa
   const create = async () => {
     setError(null);
 
@@ -168,7 +164,6 @@ export default function Usuarios() {
 
       await createParticipante(payload, token);
 
-      // recargar lista
       const updated = await getParticipantes(token);
       setRows(updated);
 
@@ -189,9 +184,8 @@ export default function Usuarios() {
     }
   };
 
-  // eliminar
   const remove = async (ci) => {
-    if (!window.confirm("¿Seguro que querés borrar este participante?")) return;
+    if (!window.confirm("¿Seguro que desea eliminar este participante?")) return;
     setError(null);
     try {
       await deleteParticipante(ci, token);
@@ -202,240 +196,213 @@ export default function Usuarios() {
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2>Participantes</h2>
+    <div className="usuarios-container">
+      <div className="usuarios-wrapper">
+        <h2 className="usuarios-title">Gestión de Participantes</h2>
 
-      {/* FILTRO */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <input
-          placeholder="Filtrar..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          style={inputMain}
-        />
-        <span style={{ fontSize: 12, color: "#888" }}>
-          {filtered.length} / {rows.length}
-        </span>
-
-        <button onClick={() => setShowCreate(true)}>Nuevo</button>
-      </div>
-
-      {error && <div style={{ color: "tomato" }}>{error}</div>}
-
-      {/* CREAR */}
-      {showCreate && (
-        <div style={boxStyle}>
-          <h4>Nuevo Participante</h4>
-
+        <div className="filter-bar">
           <input
-            placeholder="CI (8 dígitos)"
-            value={newUser.ci}
-            maxLength={8}
-            onChange={(e) => {
-              const v = e.target.value.replace(/\D/g, "");
-              if (v.length <= 8) setNewUser((d) => ({ ...d, ci: v }));
-            }}
-            style={inputStyle}
+            placeholder="Buscar por CI, nombre, email, rol..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="filter-input"
           />
-
-          <input
-            placeholder="Nombre"
-            value={newUser.nombre}
-            onChange={(e) => setNewUser((d) => ({ ...d, nombre: e.target.value }))}
-            style={inputStyle}
-          />
-
-          <input
-            placeholder="Apellido"
-            value={newUser.apellido}
-            onChange={(e) => setNewUser((d) => ({ ...d, apellido: e.target.value }))}
-            style={inputStyle}
-          />
-
-          <input
-            placeholder="Email"
-            value={newUser.email}
-            onChange={(e) => setNewUser((d) => ({ ...d, email: e.target.value }))}
-            style={inputStyle}
-          />
-
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={newUser.password}
-            onChange={(e) =>
-              setNewUser((d) => ({ ...d, password: e.target.value }))
-            }
-            style={inputStyle}
-          />
-
-          <select
-            value={newUser.rol}
-            onChange={(e) => setNewUser((d) => ({ ...d, rol: e.target.value }))}
-            style={inputStyle}
-          >
-            <option value="">Seleccionar rol...</option>
-            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-
-          <select
-            value={newUser.nombre_programa}
-            onChange={(e) => setNewUser((d) => ({ ...d, nombre_programa: e.target.value }))}
-            style={inputStyle}
-          >
-            <option value="">Seleccionar programa...</option>
-            {PROGRAMAS.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-
-          <button onClick={create} disabled={saving}>
-            {saving ? "Guardando..." : "Crear"}
+          <span className="filter-count">
+            {filtered.length} / {rows.length}
+          </span>
+          <button onClick={() => setShowCreate(true)} className="btn-new-user">
+            + Nuevo Participante
           </button>
-          <button onClick={() => setShowCreate(false)}>Cancelar</button>
         </div>
-      )}
 
-      {/* TABLA */}
-      {!loading && (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr>
-                {HEADER.map((h) => (
-                  <th key={h} style={thStyle}>{h}</th>
-                ))}
-                <th style={thStyle}>Acciones</th>
-              </tr>
-            </thead>
+        {error && <div className="error-message">⚠️ {error}</div>}
 
-            <tbody>
-              {filtered.map((r, idx) => (
-                <tr key={r.ci} style={{ background: idx % 2 ? "#121212" : "#181818" }}>
-                  <td style={tdStyle}>{r.ci}</td>
+        {showCreate && (
+          <div className="create-user-box">
+            <h4 className="create-user-title">Nuevo Participante</h4>
 
-                  {["nombre", "apellido", "email", "rol", "nombre_programa"].map(
-                    (field) => (
-                      <td key={field} style={tdStyle}>
-                        {editingCi === r.ci ? (
-                          field === "rol" ? (
-                            <select
-                              value={editingData.rol}
-                              onChange={(e) =>
-                                setEditingData((d) => ({ ...d, rol: e.target.value }))
-                              }
-                              style={inputStyle}
-                            >
-                              <option value="">Seleccionar...</option>
-                              {ROLES.map((rol) => (
-                                <option key={rol} value={rol}>{rol}</option>
-                              ))}
-                            </select>
-                          ) : field === "nombre_programa" ? (
-                            <select
-                              value={editingData.nombre_programa}
-                              onChange={(e) =>
-                                setEditingData((d) => ({ ...d, nombre_programa: e.target.value }))
-                              }
-                              style={inputStyle}
-                            >
-                              <option value="">Seleccionar...</option>
-                              {PROGRAMAS.map((p) => (
-                                <option key={p} value={p}>{p}</option>
-                              ))}
-                            </select>
+            <div className="create-user-form">
+              <input
+                placeholder="CI (8 dígitos)"
+                value={newUser.ci}
+                maxLength={8}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "");
+                  if (v.length <= 8) setNewUser((d) => ({ ...d, ci: v }));
+                }}
+                className="form-input"
+              />
+
+              <input
+                placeholder="Nombre"
+                value={newUser.nombre}
+                onChange={(e) => setNewUser((d) => ({ ...d, nombre: e.target.value }))}
+                className="form-input"
+              />
+
+              <input
+                placeholder="Apellido"
+                value={newUser.apellido}
+                onChange={(e) => setNewUser((d) => ({ ...d, apellido: e.target.value }))}
+                className="form-input"
+              />
+
+              <input
+                placeholder="Email"
+                value={newUser.email}
+                onChange={(e) => setNewUser((d) => ({ ...d, email: e.target.value }))}
+                className="form-input"
+              />
+
+              <input
+                type="password"
+                placeholder="Contraseña"
+                value={newUser.password}
+                onChange={(e) =>
+                  setNewUser((d) => ({ ...d, password: e.target.value }))
+                }
+                className="form-input"
+              />
+
+              <select
+                value={newUser.rol}
+                onChange={(e) => setNewUser((d) => ({ ...d, rol: e.target.value }))}
+                className="form-select"
+              >
+                <option value="">Seleccionar rol...</option>
+                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+
+              <select
+                value={newUser.nombre_programa}
+                onChange={(e) => setNewUser((d) => ({ ...d, nombre_programa: e.target.value }))}
+                className="form-select"
+              >
+                <option value="">Seleccionar programa...</option>
+                {PROGRAMAS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+
+              <div className="form-actions">
+                <button onClick={create} disabled={saving} className="btn-create">
+                  {saving ? "Creando..." : "Crear Participante"}
+                </button>
+                <button onClick={() => setShowCreate(false)} className="btn-cancel">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && (
+          <div className="table-container">
+            <div className="table-wrapper">
+              <table className="usuarios-table">
+                <thead>
+                  <tr>
+                    <th>CI</th>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Programa</th>
+                    <th>Tipo</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filtered.map((r, idx) => (
+                    <tr key={r.ci}>
+                      <td>{r.ci}</td>
+
+                      {["nombre", "apellido", "email", "rol", "nombre_programa"].map(
+                        (field) => (
+                          <td key={field} className={editingCi === r.ci ? "editing" : ""}>
+                            {editingCi === r.ci ? (
+                              field === "rol" ? (
+                                <select
+                                  value={editingData.rol}
+                                  onChange={(e) =>
+                                    setEditingData((d) => ({ ...d, rol: e.target.value }))
+                                  }
+                                  className="inline-select"
+                                >
+                                  <option value="">Seleccionar...</option>
+                                  {ROLES.map((rol) => (
+                                    <option key={rol} value={rol}>{rol}</option>
+                                  ))}
+                                </select>
+                              ) : field === "nombre_programa" ? (
+                                <select
+                                  value={editingData.nombre_programa}
+                                  onChange={(e) =>
+                                    setEditingData((d) => ({ ...d, nombre_programa: e.target.value }))
+                                  }
+                                  className="inline-select"
+                                >
+                                  <option value="">Seleccionar...</option>
+                                  {PROGRAMAS.map((p) => (
+                                    <option key={p} value={p}>{p}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  value={editingData[field]}
+                                  onChange={(e) =>
+                                    setEditingData((d) => ({ ...d, [field]: e.target.value }))
+                                  }
+                                  className="inline-input"
+                                />
+                              )
+                            ) : (
+                              r[field]
+                            )}
+                          </td>
+                        )
+                      )}
+
+                      <td>{r.tipo}</td>
+
+                      <td>
+                        <div className="table-actions">
+                          {editingCi === r.ci ? (
+                            <>
+                              <button onClick={saveEdit} disabled={saving} className="btn-save">
+                                Guardar
+                              </button>
+                              <button onClick={cancelEdit} disabled={saving} className="btn-cancel-edit">
+                                Cancelar
+                              </button>
+                            </>
                           ) : (
-                            <input
-                              value={editingData[field]}
-                              onChange={(e) =>
-                                setEditingData((d) => ({ ...d, [field]: e.target.value }))
-                              }
-                              style={inputStyle}
-                            />
-                          )
-                        ) : (
-                          r[field]
-                        )}
+                            <>
+                              <button onClick={() => startEdit(r)} className="btn-edit">
+                                Editar
+                              </button>
+                              <button onClick={() => remove(r.ci)} className="btn-delete">
+                                Eliminar
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
-                    )
+                    </tr>
+                  ))}
+
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={8}>
+                        <div className="empty-state">Sin resultados</div>
+                      </td>
+                    </tr>
                   )}
-
-                  <td style={tdStyle}>{r.tipo}</td>
-
-                  <td style={tdStyle}>
-                    {editingCi === r.ci ? (
-                      <>
-                        <button onClick={saveEdit} disabled={saving}>Guardar</button>
-                        <button onClick={cancelEdit} disabled={saving}>Cancelar</button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => startEdit(r)}>Editar</button>
-                        <button
-                          onClick={() => remove(r.ci)}
-                          style={{ marginLeft: 6, color: "tomato" }}
-                        >
-                          Borrar
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={HEADER.length + 1} style={{ textAlign: "center", padding: 10 }}>
-                    Sin resultados
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-const HEADER = ["CI","Nombre","Apellido","Email","Rol","Programa","Tipo"];
-
-const thStyle = {
-  textAlign: "left",
-  padding: "6px 8px",
-  background: "#202020",
-  borderBottom: "1px solid #333",
-  fontWeight: 600,
-};
-
-const tdStyle = {
-  padding: "6px 8px",
-  borderBottom: "1px solid #262626",
-  color: "#eee",
-};
-
-const inputMain = {
-  padding: "8px 10px",
-  background: "#141414",
-  color: "#eee",
-  border: "1px solid #333",
-  borderRadius: 8,
-  flex: 1,
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "4px 6px",
-  borderRadius: 4,
-  border: "1px solid #555",
-  background: "#111",
-  color: "#eee",
-  fontSize: 12,
-  marginBottom: 6,
-};
-
-const boxStyle = {
-  padding: 12,
-  marginBottom: 16,
-  background: "#1a1a1a",
-  borderRadius: 8,
-  border: "1px solid #333",
-};

@@ -34,6 +34,16 @@ export async function getSalas(token) {
   return request("/sala/", "GET", null, token);
 }
 
+// nuevo: eliminar sala (DELETE /sala/ con body { nombre_sala, edificio })
+export async function deleteSala(nombre_sala, edificio, token) {
+  return request(
+    "/sala/",
+    "DELETE",
+    { nombre_sala, edificio },
+    token
+  );
+}
+
 // nuevo: obtener estados calculados de todas las salas
 export async function getSalasEstado(token) {
   return request("/sala/estado", "GET", null, token);
@@ -177,4 +187,5 @@ export default {
   createParticipante,
   deleteParticipante,
   markNoAsiste, // nuevo
+  deleteSala, // nuevo
 };

@@ -523,12 +523,6 @@ export default function Reservas() {
                                                             {estadoNorm === "activa" && (
                                                                 <>
                                                                     <button
-                                                                        className="btn-cancelo"
-                                                                        onClick={() => handleCancel(idReserva, "admin")}
-                                                                    >
-                                                                        ❌ Cancelar
-                                                                    </button>
-                                                                    <button
                                                                         className="btn-delete"
                                                                         onClick={() => handleNoAsiste(idReserva, "admin")}
                                                                     >

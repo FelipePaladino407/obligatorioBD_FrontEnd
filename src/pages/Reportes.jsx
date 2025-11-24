@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getReportes } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import "./Reportes.css";
 
 export default function Reportes() {
   const { user } = useAuth();
@@ -28,7 +29,15 @@ export default function Reportes() {
   ];
 
   if (!user?.is_admin) {
-    return <div>No autorizado</div>;
+    return (
+      <div className="reportes-container">
+        <div className="reportes-wrapper">
+          <div className="unauthorized-message">
+            No tiene permisos para acceder a esta sección
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const fetchConsulta = async (consultaId) => {
@@ -47,103 +56,125 @@ export default function Reportes() {
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2>Reportes del Sistema</h2>
-      <p style={{ color: "#888", marginTop: -4 }}>Selecciona una consulta para ver resultados (limit 50).</p>
-      <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", marginBottom: 24 }}>
-        {CONSULTAS.map((c) => (
-          <button
-            key={c}
-            onClick={() => fetchConsulta(c)}
-            disabled={loading}
-            style={{
-              padding: "10px 12px",
-              textAlign: "left",
-              cursor: "pointer",
-              borderRadius: 10,
-              border: c === idConsulta ? "2px solid #4fd1c5" : "1px solid #222",
-              background: c === idConsulta ? "#133" : "#111",
-              color: "#eee",
-              fontSize: 13,
-              lineHeight: 1.2,
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <strong style={{ fontSize: 12 }}>{c}</strong>
-            <span style={{ opacity: 0.7 }}>Ver</span>
-          </button>
-        ))}
-      </div>
-      {loading && <div>Consultando {idConsulta}...</div>}
-      {error && <div style={{ color: "tomato" }}>{error}</div>}
-      {data && !error && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 13, color: "#aaa" }}>
-            <span><strong>Consulta:</strong> {data.consulta_id}</span>
-            {data.count !== undefined && <span><strong>Filas:</strong> {data.count}</span>}
-            {data.params && (
-              <span><strong>Params:</strong> {Object.entries(data.params).filter(([,v])=>v!==null && v!=="" ).map(([k,v])=>`${k}=${v}`).join(", ") || "(ninguno)"}</span>
-            )}
-            <button onClick={()=>setShowRaw(r=>!r)} style={{ padding:"4px 10px", borderRadius:6, border:"1px solid #333", background:"#181818", color:"#ddd", cursor:"pointer" }}>
-              {showRaw ? "Ver tabla" : "Ver JSON"}
+    <div className="reportes-container">
+      <div className="reportes-wrapper">
+        <div className="reportes-header">
+          <h2 className="reportes-title">Reportes del Sistema</h2>
+          <p className="reportes-subtitle">
+            Seleccione una consulta para ver los resultados (límite: 50 registros)
+          </p>
+        </div>
+
+        <div className="consultas-grid">
+          {CONSULTAS.map((c) => (
+            <button
+              key={c}
+              onClick={() => fetchConsulta(c)}
+              disabled={loading}
+              className={`consulta-button ${c === idConsulta ? "active" : ""}`}
+            >
+              <span className="consulta-title">{c.replace(/_/g, " ")}</span>
+              <span className="consulta-action">Ver reporte</span>
             </button>
-            {Array.isArray(data.data) && data.data.length > 0 && (
-              <button onClick={()=>exportCSV(data)} style={{ padding:"4px 10px", borderRadius:6, border:"1px solid #264", background:"#0e3a2b", color:"#9ef3c9", cursor:"pointer" }}>
-                Exportar CSV
-              </button>
+          ))}
+        </div>
+
+        {loading && (
+          <div className="loading-state">
+            Consultando {idConsulta.replace(/_/g, " ")}...
+          </div>
+        )}
+
+        {error && <div className="error-state">⚠️ {error}</div>}
+
+        {data && !error && (
+          <div className="results-container">
+            <div className="results-header">
+              <div className="result-info">
+                <span className="result-info-item">
+                  <span className="result-info-label">Consulta:</span> {data.consulta_id}
+                </span>
+                {data.count !== undefined && (
+                  <span className="result-info-item">
+                    <span className="result-info-label">Filas:</span> {data.count}
+                  </span>
+                )}
+                {data.params && (
+                  <span className="result-info-item">
+                    <span className="result-info-label">Parámetros:</span>{" "}
+                    {Object.entries(data.params)
+                      .filter(([, v]) => v !== null && v !== "")
+                      .map(([k, v]) => `${k}=${v}`)
+                      .join(", ") || "(ninguno)"}
+                  </span>
+                )}
+              </div>
+              <div className="results-actions">
+                <button onClick={() => setShowRaw((r) => !r)} className="btn-toggle-view">
+                  {showRaw ? "📊 Ver Tabla" : "📝 Ver JSON"}
+                </button>
+                {Array.isArray(data.data) && data.data.length > 0 && (
+                  <button onClick={() => exportCSV(data)} className="btn-export">
+                    📥 Exportar CSV
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {!showRaw && Array.isArray(data.data) && data.columns && (
+              <div className="table-container">
+                <div className="table-wrapper">
+                  <table className="reportes-table">
+                    <thead>
+                      <tr>
+                        {data.columns.map((col) => (
+                          <th key={col}>{col}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.data.map((row, idx) => (
+                        <tr key={idx}>
+                          {data.columns.map((col) => (
+                            <td key={col}>{renderCell(row[col])}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {data.data.length === 0 && (
+                    <div className="empty-results">Sin resultados</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showRaw && (
+              <div className="json-container">
+                <div className="json-content">
+                  {JSON.stringify(data, null, 2)}
+                </div>
+              </div>
             )}
           </div>
-
-          {!showRaw && Array.isArray(data.data) && data.columns && (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
-                <thead>
-                  <tr>
-                    {data.columns.map(col => (
-                      <th key={col} style={{ textAlign:"left", padding:"6px 8px", background:"#1d1d1d", position:"sticky", top:0, borderBottom:"1px solid #333" }}>{col}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.data.map((row, idx) => (
-                    <tr key={idx} style={{ background: idx%2?"#121212":"#161616" }}>
-                      {data.columns.map(col => (
-                        <td key={col} style={{ padding:"6px 8px", borderBottom:"1px solid #222", color:"#eee" }}>
-                          {renderCell(row[col])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {data.data.length === 0 && <div style={{ padding:8 }}>Sin resultados.</div>}
-            </div>
-          )}
-          {showRaw && (
-            <div style={{ whiteSpace:"pre-wrap", fontFamily:"monospace", background:"#111", padding:12, borderRadius:8 }}>
-              {JSON.stringify(data, null, 2)}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-function renderCell(value){
+function renderCell(value) {
   if (value === null || value === undefined) return "—";
   if (typeof value === "number") return value.toLocaleString("es-UY");
   return String(value);
 }
 
-function exportCSV(payload){
+function exportCSV(payload) {
   try {
     const { columns, data } = payload;
     if (!Array.isArray(columns) || !Array.isArray(data)) return;
     const header = columns.join(",");
-    const rows = data.map(row => columns.map(col => csvEscape(row[col])).join(","));
+    const rows = data.map((row) => columns.map((col) => csvEscape(row[col])).join(","));
     const csv = [header, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -159,9 +190,9 @@ function exportCSV(payload){
   }
 }
 
-function csvEscape(v){
+function csvEscape(v) {
   if (v === null || v === undefined) return "";
-  const s = String(v).replace(/"/g,'""');
+  const s = String(v).replace(/"/g, '""');
   if (/[",\n]/.test(s)) return `"${s}"`;
   return s;
 }
